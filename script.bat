@@ -8,28 +8,17 @@ set PROJECT_DIR=%cd%
 set WEB_CONTENT=%PROJECT_DIR%\WebContent
 set WEB_INF=%WEB_CONTENT%\WEB-INF
 set LIB=%WEB_INF%\lib
-set JAR_DIR=C:\Framework\lib
 
-set TOMCAT_HOME=C:\tomcat
+set TOMCAT_HOME=C:\apache-tomcat-10.1.28
 set WEBAPPS=%TOMCAT_HOME%\webapps
-set WAR_NAME=TestApp.war
+set WAR_NAME=BackOffice.war
 
 REM =====================================
 REM Vérifier que WEB-INF\lib existe
 REM =====================================
 if not exist "%LIB%" mkdir "%LIB%"
 
-REM =====================================
-REM Copier les JAR
-REM =====================================
-for %%f in ("%JAR_DIR%\*.jar") do (
-    copy /Y "%%f" "%LIB%"
-    if errorlevel 1 (
-        echo ❌ Erreur lors de la copie de %%f !
-        exit /b 1
-    )
-    echo ✅ %%f copié avec succès
-)
+
 
 REM =====================================
 REM Créer WEB-INF\classes
@@ -98,7 +87,7 @@ call "%TOMCAT_HOME%\bin\startup.bat"
 
 echo =====================================
 echo 🚀 Déploiement terminé !
-echo URL: http://localhost:8080/TestApp
+echo URL: http://localhost:8080/BackOffice
 echo =====================================
 
 pause

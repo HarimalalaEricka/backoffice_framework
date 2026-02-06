@@ -1,30 +1,35 @@
-package com.app;
-import com.app.controllers.UserController;
-import org.reflections.Reflections;
+package com.back;
+import com.back.util.Connexion;
+import com.back.models.Hotel;
+import java.util.List;
 import java.util.Set;
 import java.lang.reflect.*;
-import com.framework.annotation.*;
 
 public class Main {
     public static void main(String[] args) {
 
-        Class<UserController> clazz = UserController.class;
-        System.out.println("Liste des URLs dans la classe " + clazz.getSimpleName() + " :");
-        System.out.println("-------------------------------------------------------");
-        for (Method method : clazz.getDeclaredMethods()) {
-            if (method.isAnnotationPresent(HandleUrl.class)) {
-                HandleUrl annotation = method.getAnnotation(HandleUrl.class);
-                System.out.println("Méthode : " + method.getName() + " --> URL : " + annotation.value());
-            }
-        }
-        System.out.println("\n");
+        // Test de connexion à la base de données
+        System.out.println("=== Test de Connexion PostgreSQL ===");
+        String url = "jdbc:postgresql://localhost:5432/gestion_ticket";
+        String username = "postgres";
+        String password = "postgres"; // À adapter si un mot de passe est défini
+        
+        Connexion connexion = new Connexion(url, username, password);
+        connexion.connect();
+        
+        if (connexion.getConnection() != null) {
+            System.out.println("Connexion réussie à la base 'gestion_ticket'");
 
-        Reflections reflections = new Reflections("com.app.controllers");
-        Set<Class<?>> controllers = reflections.getTypesAnnotatedWith(Controller.class);
-        System.out.println("Classes avec @Controller :");
-        System.out.println("-------------------------------------------------------");
-        for (Class<?> cls : controllers) {
-            System.out.println(cls.getName());
+            // Test : récupérer et afficher les hotels
+            List<Hotel> hotels = connexion.getHotels();
+            System.out.println("Hotels trouvés : " + hotels.size());
+            for (Hotel h : hotels) {
+                System.out.println(" - id=" + h.getIdHotel() + " nom=" + h.getNom());
+            }
+
+            connexion.disconnect();
+        } else {
+            System.out.println("Échec de la connexion");
         }
     }
 }
