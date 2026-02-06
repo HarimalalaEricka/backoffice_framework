@@ -1,4 +1,5 @@
-CREATE DATABASE IF NOT EXISTS gestion_ticket;
+DROP DATABASE IF EXISTS gestion_ticket;
+CREATE DATABASE gestion_ticket;
 
 \c gestion_ticket
 
