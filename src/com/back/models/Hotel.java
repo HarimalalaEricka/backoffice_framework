@@ -1,6 +1,14 @@
 package com.back.models;
 
-public class Hotel {
+import java.io.Serializable;
+
+/**
+ * Modèle Hotel pour le framework.
+ * Sérializable pour JSON et base de données.
+ */
+public class Hotel implements Serializable {
+    private static final long serialVersionUID = 1L;
+    
     private int idHotel;
     private String nom;
 

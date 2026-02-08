@@ -1,37 +1,96 @@
 package com.back.repository;
 
 import com.back.models.Reservation;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Repository;
+import com.back.util.Connexion;
+import java.sql.Connection;
 import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.ArrayList;
 
-@Repository
 public class ReservationRepository {
 
-    private final JdbcTemplate jdbc;
+    private Connexion connexion;
 
-    public ReservationRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+    public ReservationRepository(String url, String username, String password) {
+        this.connexion = new Connexion(url, username, password);
+        this.connexion.connect();
+    }
 
     public void insertReservation(Reservation r) {
-        String sql = "INSERT INTO reservation (client_id, nbr_pers, date_heure_arrivee, hotel_id) VALUES (?, ?, ?, ?)";
-        jdbc.update(sql, r.getClientId(), r.getNbrPers(), r.getDateHeureArrivee(), r.getHotelId());
+        Connection conn = connexion.getConnection();
+        if (conn == null) {
+            System.err.println("Connexion non établie");
+            return;
+        }
+
+        String sql = "INSERT INTO Reservation (client_id, nbr_pers, date_heure, hotel_id) VALUES (?, ?, ?, ?)";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, r.getClientId());
+            ps.setInt(2, r.getNbrPers());
+            ps.setTimestamp(3, java.sql.Timestamp.valueOf(r.getDateHeureArrivee()));
+            ps.setInt(4, r.getHotelId());
+            ps.executeUpdate();
+            System.out.println("Réservation insérée avec succès");
+        } catch (SQLException e) {
+            System.err.println("Erreur lors de l'insertion de la réservation : " + e.getMessage());
+        }
     }
 
     public List<Reservation> findAll() {
-        String sql = "SELECT * FROM reservation";
-        return jdbc.query(sql, (rs, rowNum) -> 
-            new Reservation(rs.getInt("idReservation"), rs.getString("client_id"),
-            rs.getInt("nbr_pers"), rs.getTimestamp("date_heure_arrivee").toLocalDateTime(),
-            rs.getInt("hotel_id")));
+        List<Reservation> reservations = new ArrayList<>();
+        Connection conn = connexion.getConnection();
+        
+        if (conn == null) {
+            System.err.println("Connexion non établie");
+            return reservations;
+        }
+
+        String sql = "SELECT id, client_id, nbr_pers, date_heure, hotel_id FROM Reservation";
+        try (PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                int idReservation = rs.getInt("id");
+                String clientId = rs.getString("client_id");
+                int nbrPers = rs.getInt("nbr_pers");
+                java.time.LocalDateTime dateHeureArrivee = rs.getTimestamp("date_heure").toLocalDateTime();
+                int hotelId = rs.getInt("hotel_id");
+                reservations.add(new Reservation(idReservation, clientId, nbrPers, dateHeureArrivee, hotelId));
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur lors de la récupération des réservations : " + e.getMessage());
+        }
+        return reservations;
     }
 
     public List<Reservation> findByDate(LocalDate date) {
-        String sql = "SELECT * FROM reservation WHERE DATE(date_heure_arrivee) = ?";
-        return jdbc.query(sql, new Object[]{Date.valueOf(date)}, (rs, rowNum) ->
-            new Reservation(rs.getInt("idReservation"), rs.getString("client_id"),
-            rs.getInt("nbr_pers"), rs.getTimestamp("date_heure_arrivee").toLocalDateTime(),
-            rs.getInt("hotel_id")));
+        List<Reservation> reservations = new ArrayList<>();
+        Connection conn = connexion.getConnection();
+        
+        if (conn == null) {
+            System.err.println("Connexion non établie");
+            return reservations;
+        }
+
+        String sql = "SELECT id, client_id, nbr_pers, date_heure, hotel_id FROM Reservation WHERE DATE(date_heure) = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDate(1, Date.valueOf(date));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    int idReservation = rs.getInt("id");
+                    String clientId = rs.getString("client_id");
+                    int nbrPers = rs.getInt("nbr_pers");
+                    java.time.LocalDateTime dateHeureArrivee = rs.getTimestamp("date_heure").toLocalDateTime();
+                    int hotelId = rs.getInt("hotel_id");
+                    reservations.add(new Reservation(idReservation, clientId, nbrPers, dateHeureArrivee, hotelId));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur lors de la recherche par date : " + e.getMessage());
+        }
+        return reservations;
     }
 }

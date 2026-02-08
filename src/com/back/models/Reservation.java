@@ -1,8 +1,15 @@
 package com.back.models;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
-public class Reservation {
+/**
+ * Modèle Reservation pour le framework.
+ * Sérializable pour JSON et base de données.
+ */
+public class Reservation implements Serializable {
+    private static final long serialVersionUID = 1L;
+    
     private int idReservation;
     private String client_id;
     private int nbr_pers;

@@ -10,7 +10,7 @@ set WEB_INF=%WEB_CONTENT%\WEB-INF
 set LIB=%WEB_INF%\lib
 set JAR_DIR=C:\Framework\lib
 
-set TOMCAT_HOME=C:\tomcat
+set TOMCAT_HOME=D:\apache-tomcat-10.1.28
 set WEBAPPS=%TOMCAT_HOME%\webapps
 set WAR_NAME=TestApp.war
 
