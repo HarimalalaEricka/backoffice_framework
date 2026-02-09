@@ -1,7 +1,6 @@
 package com.back;
 import com.back.util.Connexion;
 import com.back.models.Hotel;
-import com.framework.core.ClassScanner;
 import java.util.List;
 import java.util.Set;
 import java.lang.reflect.*;
@@ -37,9 +36,9 @@ public class Main {
         }
         
         // Scan des contrôleurs annotés avec @Controller
-        logger.info("Scan des contrôleurs avec le framework...");
-        ClassScanner scanner = new ClassScanner();
-        Set<Class<?>> controllers = scanner.getClassesAnnotatedWith("com.back", "com.framework.annotation.Controller");
-        logger.info("Contrôleurs trouvés : " + controllers.size());
+        // logger.info("Scan des contrôleurs avec le framework...");
+        // ClassScanner scanner = new ClassScanner("com.back");
+        // Set<Class<?>> controllers = scanner.getClassesAnnotatedWith();
+        // logger.info("Contrôleurs trouvés : " + controllers.size());
     }
 }
