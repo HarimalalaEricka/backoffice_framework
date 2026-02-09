@@ -8,28 +8,29 @@ set PROJECT_DIR=%cd%
 set WEB_CONTENT=%PROJECT_DIR%\WebContent
 set WEB_INF=%WEB_CONTENT%\WEB-INF
 set LIB=%WEB_INF%\lib
-set JAR_DIR=C:\Framework\lib
+@REM set JAR_DIR=C:\Framework\lib
 
-set TOMCAT_HOME=C:\tomcat
+set TOMCAT_HOME=D:\Tomcat\tomcat
+set CATALINA_HOME=%TOMCAT_HOME%
 set WEBAPPS=%TOMCAT_HOME%\webapps
-set WAR_NAME=TestApp.war
+set WAR_NAME=BackOffice.war
 
 REM =====================================
 REM Vérifier que WEB-INF\lib existe
 REM =====================================
 if not exist "%LIB%" mkdir "%LIB%"
 
-REM =====================================
-REM Copier les JAR
-REM =====================================
-for %%f in ("%JAR_DIR%\*.jar") do (
-    copy /Y "%%f" "%LIB%"
-    if errorlevel 1 (
-        echo ❌ Erreur lors de la copie de %%f !
-        exit /b 1
-    )
-    echo ✅ %%f copié avec succès
-)
+@REM REM =====================================
+@REM REM Copier les JAR
+@REM REM =====================================
+@REM for %%f in ("%JAR_DIR%\*.jar") do (
+@REM     copy /Y "%%f" "%LIB%"
+@REM     if errorlevel 1 (
+@REM         echo ❌ Erreur lors de la copie de %%f !
+@REM         exit /b 1
+@REM     )
+@REM     echo ✅ %%f copié avec succès
+@REM )
 
 REM =====================================
 REM Créer WEB-INF\classes
@@ -42,7 +43,7 @@ REM =====================================
 set JAVA_FILES=
 
 for /R src %%f in (*.java) do (
-    set JAVA_FILES=!JAVA_FILES! %%f
+    set JAVA_FILES=!JAVA_FILES! "%%f"
 )
 
 javac -parameters -cp "%WEB_INF%\lib\*" -d "%WEB_INF%\classes" %JAVA_FILES%
@@ -98,7 +99,7 @@ call "%TOMCAT_HOME%\bin\startup.bat"
 
 echo =====================================
 echo 🚀 Déploiement terminé !
-echo URL: http://localhost:8080/TestApp
+echo URL: http://localhost:8080/BackOffice
 echo =====================================
 
 pause
