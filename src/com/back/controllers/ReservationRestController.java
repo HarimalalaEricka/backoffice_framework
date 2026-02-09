@@ -29,7 +29,7 @@ public class ReservationRestController {
     public ReservationRestController() {
         String url = "jdbc:postgresql://localhost:5432/gestion_ticket";
         String user = "postgres";
-        String password = "kanto"; // adapter si nécessaire
+        String password = "postgres"; // adapter si nécessaire
         ReservationRepository reservationRepo = new ReservationRepository(url, user, password);
         HotelRepository hotelRepo = new HotelRepository(url, user, password);
         this.service = new ReservationService(reservationRepo, hotelRepo);
