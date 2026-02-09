@@ -1,10 +1,10 @@
-package com.back.controller;
+package com.app.controller;
 
-import com.back.models.Hotel;
-import com.back.models.Reservation;
-import com.back.service.ReservationService;
-import com.back.repository.HotelRepository;
-import com.back.repository.ReservationRepository;
+import com.app.models.Hotel;
+import com.app.models.Reservation;
+import com.app.service.ReservationService;
+import com.app.repository.HotelRepository;
+import com.app.repository.ReservationRepository;
 import com.framework.annotation.Controller;
 import com.framework.annotation.HandleGet;
 import com.framework.annotation.HandlePost;
@@ -29,7 +29,7 @@ public class ReservationRestController {
     public ReservationRestController() {
         String url = "jdbc:postgresql://localhost:5432/gestion_ticket";
         String user = "postgres";
-        String password = "kanto"; // adapter si nécessaire
+        String password = "postgres"; // adapter si nécessaire
         ReservationRepository reservationRepo = new ReservationRepository(url, user, password);
         HotelRepository hotelRepo = new HotelRepository(url, user, password);
         this.service = new ReservationService(reservationRepo, hotelRepo);

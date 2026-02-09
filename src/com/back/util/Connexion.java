@@ -1,4 +1,4 @@
-package com.back.util;
+package com.app.util;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -7,7 +7,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.List;
 import java.util.ArrayList;
-import com.back.models.Hotel;
+import com.app.models.Hotel;
 
 public class Connexion {
 

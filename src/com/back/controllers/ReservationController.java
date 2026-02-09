@@ -1,8 +1,8 @@
-package com.back.controllers;
+package com.app.controllers;
 
 import com.framework.annotation.*;
-import com.back.util.Connexion;
-import com.back.models.Reservation;
+import com.app.util.Connexion;
+import com.app.models.Reservation;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;

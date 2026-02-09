@@ -1,4 +1,4 @@
-<%@ page import="com.back.repository.HotelRepository,com.back.repository.ReservationRepository,com.back.service.ReservationService,com.back.models.Hotel,com.back.models.Reservation" %>
+<%@ page import="com.app.repository.HotelRepository,com.app.repository.ReservationRepository,com.app.service.ReservationService,com.app.models.Hotel,com.app.models.Reservation" %>
 <%@ page import="java.util.List,java.time.LocalDate,java.time.LocalDateTime" %>
 <%
 // Configuration connexion (adapter si necessaire)
