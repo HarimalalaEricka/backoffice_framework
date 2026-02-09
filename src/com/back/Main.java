@@ -4,8 +4,11 @@ import com.back.models.Hotel;
 import java.util.List;
 import java.util.Set;
 import java.lang.reflect.*;
+import java.util.logging.Logger;
 
 public class Main {
+    private static final Logger logger = Logger.getLogger(Main.class.getName());
+
     public static void main(String[] args) {
 
         // Test de connexion à la base de données
@@ -31,5 +34,11 @@ public class Main {
         } else {
             System.out.println("Échec de la connexion");
         }
+        
+        // Scan des contrôleurs annotés avec @Controller
+        // logger.info("Scan des contrôleurs avec le framework...");
+        // ClassScanner scanner = new ClassScanner("com.back");
+        // Set<Class<?>> controllers = scanner.getClassesAnnotatedWith();
+        // logger.info("Contrôleurs trouvés : " + controllers.size());
     }
 }

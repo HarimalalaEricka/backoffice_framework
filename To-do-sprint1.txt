@@ -1,0 +1,22 @@
+TL : ETU003350 / HarimalalaEricka
+Devs :  
+    ETU003324 / Harenkantou
+    ETU003366 / vatosoa-wanda 
+
+BackOffice
+    Module : Reservation
+        Tache : Creation de Reservation
+            - Affichage : formulaire de Reservation
+            - Metier : Insertion dans la base 
+            - Responsable : ETU003324
+
+        Tache : Liste de Reservation
+            - Metier : Get Reservation + filtre par date
+            - Responsable : ETU003366
+
+FrontOffice
+    Module : Reservation
+        Tache : Liste de Reservation
+            - Affichage : tableau liste de Reservation + input filtre
+            - Metier : Appel API(/api/reservations) depuis BackOffice
+            - Responsable : ETU003366
