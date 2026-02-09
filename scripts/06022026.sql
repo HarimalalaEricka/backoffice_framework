@@ -4,16 +4,46 @@ CREATE DATABASE gestion_ticket;
 \c gestion_ticket
 
 CREATE TABLE Hotel (
-    id SERIAL PRIMARY KEY,
+    idHotel SERIAL PRIMARY KEY,
     nom VARCHAR(100) NOT NULL
 );
 
 -- Table des réservations principales
 CREATE TABLE Reservation (
-    id SERIAL PRIMARY KEY,
+    idReservation SERIAL PRIMARY KEY,
     client_id VARCHAR(50) NOT NULL,
-    date_heure TIMESTAMP NOT NULL,
+    date_heure_arrivee TIMESTAMP NOT NULL,
     nbr_pers INTEGER NOT NULL CHECK (nbr_pers > 0),
-    hotel_id INTEGER NOT NULL REFERENCES Hotel(id) ON DELETE CASCADE
+    hotel_id INTEGER NOT NULL REFERENCES Hotel(idHotel) ON DELETE CASCADE
 );
+
+-- Données de test
+INSERT INTO Hotel (nom) VALUES ('Hôtel Luxe');
+INSERT INTO Hotel (nom) VALUES ('Hôtel Moderne');
+
+INSERT INTO reservation VALUES 
+(1, 'CLI001', 2, TIMESTAMP '2026-03-10 09:30:00', 1);
+
+INSERT INTO reservation VALUES 
+(2, 'CLI002', 4, TIMESTAMP '2026-03-10 14:00:00', 2);
+
+INSERT INTO reservation VALUES 
+(3, 'CLI003', 1, TIMESTAMP '2026-03-11 08:15:00', 3);
+
+INSERT INTO reservation VALUES 
+(4, 'CLI004', 3, TIMESTAMP '2026-03-11 18:45:00', 4);
+
+INSERT INTO reservation VALUES 
+(5, 'CLI005', 5, TIMESTAMP '2026-03-12 10:00:00', 5);
+
+INSERT INTO reservation VALUES 
+(6, 'CLI006', 2, TIMESTAMP '2026-03-12 16:30:00', 1);
+
+INSERT INTO reservation VALUES 
+(7, 'CLI007', 6, TIMESTAMP '2026-03-13 12:00:00', 2);
+
+INSERT INTO reservation VALUES 
+(8, 'CLI008', 3, TIMESTAMP '2026-03-13 20:15:00', 3);
+
+
 
