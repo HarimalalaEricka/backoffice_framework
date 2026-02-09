@@ -1,6 +1,6 @@
-package com.back;
-import com.back.util.Connexion;
-import com.back.models.Hotel;
+package com.app;
+import com.app.util.Connexion;
+import com.app.models.Hotel;
 import java.util.List;
 import java.util.Set;
 import java.lang.reflect.*;
@@ -37,7 +37,7 @@ public class Main {
         
         // Scan des contrôleurs annotés avec @Controller
         // logger.info("Scan des contrôleurs avec le framework...");
-        // ClassScanner scanner = new ClassScanner("com.back");
+        // ClassScanner scanner = new ClassScanner("com.app");
         // Set<Class<?>> controllers = scanner.getClassesAnnotatedWith();
         // logger.info("Contrôleurs trouvés : " + controllers.size());
     }
