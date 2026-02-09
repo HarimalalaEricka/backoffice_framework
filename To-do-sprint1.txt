@@ -18,5 +18,5 @@ FrontOffice
     Module : Reservation
         Tache : Liste de Reservation
             - Affichage : tableau liste de Reservation + input filtre
-            - Metier : Appel API(/reservations/) depuis BackOffice
+            - Metier : Appel API(/api/reservations) depuis BackOffice
             - Responsable : ETU003366
