@@ -27,10 +27,10 @@ public class ReservationController {
         this.connexion = new Connexion(url, username, password);
     }
       
-    // API : récupérer les réservations depuis la base et renvoyer en JSON
+    // API : récupérer les réservations depuis la base et renvoyer en JSON, avec filtrage optionnel par date
     @HandleGet("/api/reservations")
     @JsonResponse
-    public List<Map<String, Object>> apiReservations() {
+    public List<Map<String, Object>> apiReservations(@RequestParam(value = "date", required = false) String date) {
         List<Map<String, Object>> reservations = new ArrayList<>();
 
         connexion.connect();
@@ -39,25 +39,33 @@ public class ReservationController {
             return reservations;
         }
 
-        String sql = "SELECT id, client_id, date_heure, nbr_pers, hotel_id FROM Reservation";
-        try (PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-
-            while (rs.next()) {
-                Map<String, Object> res = new HashMap<>();
-                res.put("id", rs.getInt("id"));
-                res.put("client_id", rs.getString("client_id"));
-
-                Timestamp ts = rs.getTimestamp("date_heure");
-                LocalDateTime dateHeure = ts != null ? ts.toLocalDateTime() : null;
-                res.put("date_heure", dateHeure);
-
-                res.put("nbr_pers", rs.getInt("nbr_pers"));
-                res.put("hotel_id", rs.getInt("hotel_id"));
-
-                reservations.add(res);
+        // Updated SQL: Join with hotel table to include hotel name
+        String sql = "SELECT r.id, r.client_id, r.date_heure, r.nbr_pers, r.hotel_id, h.nom AS hotel_nom FROM Reservation r JOIN hotel h ON r.hotel_id = h.id";
+        if (date != null && !date.isEmpty()) {
+            sql += " WHERE DATE(r.date_heure) = ?";
+        }
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            if (date != null && !date.isEmpty()) {
+                ps.setDate(1, java.sql.Date.valueOf(date));
             }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> res = new HashMap<>();
+                    res.put("id", rs.getInt("id"));
+                    res.put("client_id", rs.getString("client_id"));
 
+                    Timestamp ts = rs.getTimestamp("date_heure");
+                    LocalDateTime dateHeure = ts != null ? ts.toLocalDateTime() : null;
+                    res.put("date_heure", dateHeure);
+
+                    res.put("nbr_pers", rs.getInt("nbr_pers"));
+                    res.put("hotel_id", rs.getInt("hotel_id"));
+                    // Add hotel name to the response
+                    res.put("hotel_nom", rs.getString("hotel_nom"));
+
+                    reservations.add(res);
+                }
+            }
         } catch (SQLException e) {
             System.err.println("Erreur récupération réservations : " + e.getMessage());
         } finally {
