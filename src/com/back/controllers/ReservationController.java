@@ -39,13 +39,13 @@ public class ReservationController {
             return reservations;
         }
 
-        String sql = "SELECT id, client_id, date_heure, nbr_pers, hotel_id FROM Reservation";
+        // Updated SQL: Join with hotel table to include hotel name
+        String sql = "SELECT r.id, r.client_id, r.date_heure, r.nbr_pers, r.hotel_id, h.nom AS hotel_nom FROM Reservation r JOIN hotel h ON r.hotel_id = h.id";
         if (date != null && !date.isEmpty()) {
-            sql += " WHERE DATE(date_heure) = ?";
+            sql += " WHERE DATE(r.date_heure) = ?";
         }
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             if (date != null && !date.isEmpty()) {
-                // Fix: Use setDate instead of setString to bind as a Date object
                 ps.setDate(1, java.sql.Date.valueOf(date));
             }
             try (ResultSet rs = ps.executeQuery()) {
@@ -60,6 +60,8 @@ public class ReservationController {
 
                     res.put("nbr_pers", rs.getInt("nbr_pers"));
                     res.put("hotel_id", rs.getInt("hotel_id"));
+                    // Add hotel name to the response
+                    res.put("hotel_nom", rs.getString("hotel_nom"));
 
                     reservations.add(res);
                 }
