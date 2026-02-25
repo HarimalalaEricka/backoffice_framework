@@ -1,10 +1,10 @@
-package com.back.controller;
+package com.app.controller;
 
-import com.back.models.Hotel;
-import com.back.models.Reservation;
-import com.back.service.ReservationService;
-import com.back.repository.HotelRepository;
-import com.back.repository.ReservationRepository;
+import com.app.models.Hotel;
+import com.app.models.Reservation;
+import com.app.service.ReservationService;
+import com.app.repository.HotelRepository;
+import com.app.repository.ReservationRepository;
 import com.framework.annotation.Controller;
 import com.framework.annotation.HandleGet;
 import com.framework.annotation.HandlePost;
@@ -12,6 +12,8 @@ import com.framework.annotation.JsonResponse;
 import com.framework.annotation.RequestParam;
 import java.time.LocalDate;
 import java.util.List;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * Contrôleur des réservations utilisant le Framework.
@@ -52,6 +54,7 @@ public class ReservationRestController {
         LocalDate d = date != null && !date.isEmpty() ? LocalDate.parse(date) : null;
         return service.getReservations(d);
     }
+
 
     @HandlePost("/reservations/insert")
     @JsonResponse

@@ -1,9 +1,9 @@
-package com.back.service;
+package com.app.service;
 
-import com.back.models.Hotel;
-import com.back.models.Reservation;
-import com.back.repository.HotelRepository;
-import com.back.repository.ReservationRepository;
+import com.app.models.Hotel;
+import com.app.models.Reservation;
+import com.app.repository.HotelRepository;
+import com.app.repository.ReservationRepository;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.logging.Logger;
