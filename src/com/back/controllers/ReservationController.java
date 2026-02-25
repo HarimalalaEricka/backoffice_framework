@@ -29,7 +29,7 @@ public class ReservationController {
         // Initialiser la connexion à la base de données
         String url = "jdbc:postgresql://localhost:5432/gestion_ticket";
         String username = "postgres";
-        String password = "kanto"; // À adapter si un mot de passe est défini
+        String password = "postgres"; // À adapter si un mot de passe est défini
         this.connexion = new Connexion(url, username, password);
     }
       
@@ -79,7 +79,7 @@ public class ReservationController {
         ModelView mv = new ModelView();
         String url = "jdbc:postgresql://localhost:5432/gestion_ticket";
         String username = "postgres";
-        String password = "kanto";
+        String password = "postgres"; // adapter si nécessaire
 
         HotelRepository hotelRepo = new HotelRepository(url, username, password);
         ReservationRepository reservationRepo = new ReservationRepository(url, username, password);
@@ -97,7 +97,7 @@ public class ReservationController {
         ModelView mv = new ModelView();
         String url = "jdbc:postgresql://localhost:5432/gestion_ticket";
         String username = "postgres";
-        String password = "kanto";
+        String password = "postgres";
 
         try {
             java.time.LocalDateTime dt;
