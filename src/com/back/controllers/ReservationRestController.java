@@ -1,4 +1,4 @@
-package com.app.controller;
+package com.app.controllers;
 
 import com.app.models.Hotel;
 import com.app.models.Reservation;
@@ -22,14 +22,10 @@ public class ReservationRestController {
 
     private final ReservationService service;
 
-    /**
-     * Constructeur par défaut : initialise les repositories avec des valeurs
-     * par défaut pour la base `gestion_ticket`. Ajustez le mot de passe si besoin.
-     */
     public ReservationRestController() {
         String url = "jdbc:postgresql://localhost:5432/gestion_ticket";
         String user = "postgres";
-        String password = "postgres"; // adapter si nécessaire
+        String password = "postgres";
         ReservationRepository reservationRepo = new ReservationRepository(url, user, password);
         HotelRepository hotelRepo = new HotelRepository(url, user, password);
         this.service = new ReservationService(reservationRepo, hotelRepo);
@@ -42,8 +38,8 @@ public class ReservationRestController {
 
     @HandleGet("/hotels")
     @JsonResponse
-    public List<Hotel> hotels() { 
-        return service.getHotels(); 
+    public List<Hotel> hotels() {
+        return service.getHotels();
     }
 
     @HandleGet("/reservations")
