@@ -1,7 +1,7 @@
-package com.back.repository;
+package com.app.repository;
 
-import com.back.models.Hotel;
-import com.back.util.Connexion;
+import com.app.models.Hotel;
+import com.app.util.Connexion;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
