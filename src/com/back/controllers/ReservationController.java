@@ -70,7 +70,6 @@ public class ReservationController {
                     throw ex;
                 }
             }
-
             ReservationRepository reservationRepo = new ReservationRepository(url, username, password);
             HotelRepository hotelRepo = new HotelRepository(url, username, password);
             ReservationService service = new ReservationService(reservationRepo, hotelRepo);
@@ -87,5 +86,43 @@ public class ReservationController {
 
         mv.setView("/reservations.jsp");
         return mv;
+    }
+    @HandleGet("/api/reservations")
+    @JsonResponse
+    public List<Map<String, Object>> apiReservations() {
+        List<Map<String, Object>> reservations = new ArrayList<>();
+
+        connexion.connect();
+        Connection conn = connexion.getConnection();
+        if (conn == null) {
+            return reservations;
+        }
+
+        String sql = "SELECT id, client_id, date_heure, nbr_pers, hotel_id FROM Reservation";
+        try (PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                Map<String, Object> res = new HashMap<>();
+                res.put("id", rs.getInt("id"));
+                res.put("client_id", rs.getString("client_id"));
+
+                Timestamp ts = rs.getTimestamp("date_heure");
+                LocalDateTime dateHeure = ts != null ? ts.toLocalDateTime() : null;
+                res.put("date_heure", dateHeure);
+
+                res.put("nbr_pers", rs.getInt("nbr_pers"));
+                res.put("hotel_id", rs.getInt("hotel_id"));
+
+                reservations.add(res);
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Erreur récupération réservations : " + e.getMessage());
+        } finally {
+            connexion.disconnect();
+        }
+
+        return reservations;
     }
 }
