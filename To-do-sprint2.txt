@@ -1,0 +1,69 @@
+TL : ETU003366 / vatosoa-wanda
+Devs :  
+    ETU003324 / Harenkantou
+    ETU003350 / HarimalalaEricka
+
+BackOffice
+    Module : Vehicule
+        Tache : Création de Vehicule
+            - Affichage : Formulaire d’ajout véhicule (reference,nbr_places,type_carburant (D, ES, EL, H))
+            - Metier : 
+                Validation :
+                    - reference non vide, nbr_places > 0, type_carburant ∈ (D, ES, EL, H)
+                    - Insertion en base 
+            - Responsable : ETU003324
+
+        Tache : Suppression de Vehicule
+            - Affichage : Bouton supprimer dans la liste
+            - Metier : Suppression par id
+            - Responsable : ETU003324
+
+        Tache : Liste des Vehicules
+            - Métier :
+                Récupération de tous les véhicules
+                API protégée par token
+            - Tableau liste véhicules
+            - Responsable : ETU003350
+
+    Module : Token
+        Tache : Génération de Token
+            - Affichage :
+                Formulaire pour générer un token
+                Champ durée de validité (ex : 1h, 2h, 24h)
+            - Metier :
+                Génération UUID (Utiliser le service TokenService et la methode generateUUID())
+                Calcul date_heure_expiration
+                Insertion en base
+            - Responsable : ETU003350
+
+        Tache : Vérification de Token (Protection API)
+            - Implémentation du Middleware / Filtre HTTP
+            - Définition de la structure standard des erreurs JSON 
+            - Vérifier :
+                Présence du token dans le Header
+                Authorization: Bearer <token>
+                Existence en base
+                Non expiration
+            - Appliquer cette vérification avant l’exécution de toute API protégée (ex: Liste des Reservations, liste des vehicules)
+            - Liste : vérifier la présence et la validité (non expiration) du token avant de renvoyer les données.
+            - Responsable : ETU003324
+
+
+FrontOffice
+    Module : Reservation
+        Tache : Appel API avec Token
+            - Metier : 
+                Ajouter token dans Header lors des appels :
+                    /api/vehicules
+            - Responsable : ETU003350
+
+    Module : Gestion Token Front
+        Tache : Stockage du Token
+            - Sauvegarde du token : localStorage ou sessionStorage
+            - Réutilisation automatique pour chaque appel API
+            - Responsable : ETU003350
+
+        Tache : Gestion Expiration
+            - Si API retourne token expiré :
+                Message d’erreur utilisateur
+            - Responsable : ETU003324
