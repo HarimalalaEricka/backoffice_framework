@@ -3,6 +3,9 @@ package com.app.controllers;
 import com.app.models.Vehicule;
 import com.app.service.VehiculeService;
 import com.app.repository.VehiculeRepository;
+import com.framework.annotation.HandleGet;
+import com.framework.annotation.JsonResponse;
+import java.util.List;
 import com.framework.annotation.Controller;
 import com.framework.annotation.HandlePost;
 import com.framework.annotation.JsonResponse;
@@ -33,5 +36,15 @@ public class VehiculeRestController {
         } catch (IllegalArgumentException e) {
             return "{\"status\": \"error\", \"message\": \"" + e.getMessage() + "\"}";
         }
+    }
+
+    @HandleGet("/api/vehicules")
+    @JsonResponse
+    public List<Vehicule> listVehicules() {
+        String url = "jdbc:postgresql://localhost:5432/gestion_ticket";
+        String user = "postgres";
+        String password = "kanto";
+        VehiculeRepository vehiculeRepo = new VehiculeRepository(url, user, password);
+        return vehiculeRepo.findAll();
     }
 }
