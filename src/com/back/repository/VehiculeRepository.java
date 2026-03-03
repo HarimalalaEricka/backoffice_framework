@@ -6,10 +6,11 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.ArrayList;
 
 public class VehiculeRepository {
+
     private Connexion connexion;
 
     public VehiculeRepository(String url, String username, String password) {
@@ -55,12 +56,11 @@ public class VehiculeRepository {
         try (PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                int id = rs.getInt("idVehicule");
+                int idVehicule = rs.getInt("idVehicule");
                 String reference = rs.getString("reference");
                 int nbrPlaces = rs.getInt("nbr_places");
                 String typeCarburant = rs.getString("type_carburant");
-                
-                vehicules.add(new Vehicule(id, reference, nbrPlaces, typeCarburant));
+                vehicules.add(new Vehicule(idVehicule, reference, nbrPlaces, typeCarburant));
             }
         } catch (SQLException e) {
             System.err.println("Erreur lors de la récupération des véhicules : " + e.getMessage());

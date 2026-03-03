@@ -47,4 +47,9 @@ public class VehiculeService {
         return type != null && (type.equals("D") || type.equals("ES") || 
                type.equals("EL") || type.equals("H"));
     }
+
+    public List<Vehicule> getAllVehicules() {
+        logger.info("Récupération de tous les véhicules");
+        return vehiculeRepo.findAll();
+    }
 }
