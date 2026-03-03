@@ -75,4 +75,34 @@ public class TokenRepository {
             System.err.println("Erreur lors de l'insertion du token : " + e.getMessage());
         }
     }
+
+    public boolean isTokenValid(String token) {
+        Token t = findByTokenValue(token);
+        if (t == null) {
+            return false;
+        }
+        // Vérifier si le token n'est pas expiré
+        return t.getDateHeureExpiration().isAfter(java.time.LocalDateTime.now());
+    }
+
+    /**
+     * Récupère le message d'erreur si le token est expiré
+     */
+    public String getTokenErrorMessage(String token) {
+        Token t = findByTokenValue(token);
+        if (t == null) {
+            return "Token invalide ou non trouvé.";
+        }
+        if (t.getDateHeureExpiration().isBefore(java.time.LocalDateTime.now())) {
+            return "Token expiré. Veuillez vous reconnecter.";
+        }
+        return null;
+    }
+
+    /**
+     * Indique si la connexion JDBC est établie
+     */
+    public boolean isConnected() {
+        return this.connexion != null && this.connexion.getConnection() != null;
+    }
 }

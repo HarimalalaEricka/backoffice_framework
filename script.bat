@@ -10,7 +10,7 @@ set WEB_INF=%WEB_CONTENT%\WEB-INF
 set LIB=%WEB_INF%\lib
 @REM set JAR_DIR=C:\Framework\lib
 
-set TOMCAT_HOME=D:\Tomcat\tomcat
+set TOMCAT_HOME=C:\xampp\tomcat
 set CATALINA_HOME=%TOMCAT_HOME%
 set WEBAPPS=%TOMCAT_HOME%\webapps
 set WAR_NAME=BackOffice.war

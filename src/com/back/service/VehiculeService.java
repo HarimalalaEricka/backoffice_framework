@@ -3,7 +3,7 @@ package com.app.service;
 import com.app.models.Vehicule;
 import com.app.repository.VehiculeRepository;
 import java.util.logging.Logger;
-
+import java.util.List;
 /**
  * Service métier pour la gestion des véhicules.
  * Effectue les validations métier avant insertion en base.

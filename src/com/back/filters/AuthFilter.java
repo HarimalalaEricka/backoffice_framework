@@ -55,7 +55,7 @@ public class AuthFilter implements Filter {
             return;
         }
 
-        Token token = tokenRepo.findByToken(tokenValue);
+        Token token = tokenRepo.findByTokenValue(tokenValue);
         if (token == null) {
             sendError(response, HttpServletResponse.SC_UNAUTHORIZED,
                       "Token inconnu");
