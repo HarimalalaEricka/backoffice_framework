@@ -85,4 +85,53 @@ public class VehiculeController {
         mv.setView("/vehicules/vehicules.jsp");
         return mv;
     }
+
+    /**
+     * Affiche le formulaire d'édition d'un véhicule
+     */
+    @HandleGet("/vehicules/edit")
+    public ModelView editForm(@RequestParam("id") int idVehicule) {
+        ModelView mv = new ModelView();
+        
+        VehiculeRepository vehiculeRepo = new VehiculeRepository(URL, USERNAME, PASSWORD);
+        Vehicule vehicule = vehiculeRepo.findById(idVehicule);
+        
+        if (vehicule != null) {
+            mv.addAttribute("vehicule", vehicule);
+            mv.setView("/vehicules/vehicules_edit.jsp");
+        } else {
+            mv.addAttribute("error", "Véhicule non trouvé.");
+            mv.addAttribute("vehicules", vehiculeRepo.findAll());
+            mv.setView("/vehicules/vehicules.jsp");
+        }
+        
+        return mv;
+    }
+
+    /**
+     * Traite la modification d'un véhicule
+     */
+    @HandlePost("/vehicules/update")
+    public ModelView handleUpdate(@RequestParam("id_vehicule") int idVehicule,
+                                  @RequestParam("reference") String reference,
+                                  @RequestParam("nbr_places") int nbrPlaces,
+                                  @RequestParam("type_carburant") String typeCarburant) {
+        ModelView mv = new ModelView();
+        
+        VehiculeRepository vehiculeRepo = new VehiculeRepository(URL, USERNAME, PASSWORD);
+        
+        try {
+            Vehicule vehicule = new Vehicule(idVehicule, reference, nbrPlaces, typeCarburant);
+            vehiculeRepo.updateVehicule(vehicule);
+            
+            mv.addAttribute("message", "Véhicule modifié avec succès.");
+            mv.addAttribute("vehicules", vehiculeRepo.findAll());
+        } catch (Exception e) {
+            mv.addAttribute("error", "Erreur lors de la modification : " + e.getMessage());
+            mv.addAttribute("vehicules", vehiculeRepo.findAll());
+        }
+        
+        mv.setView("/vehicules/vehicules.jsp");
+        return mv;
+    }
 }

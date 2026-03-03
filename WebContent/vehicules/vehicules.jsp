@@ -80,6 +80,7 @@ if (vehicules == null) vehicules = new java.util.ArrayList<>();
                         <td><%= v.getNbrPlaces() %></td>
                         <td><%= v.getTypeCarburant() %></td>
                         <td>
+                            <a href="<%= request.getContextPath() %>/vehicules/edit?id=<%= v.getIdVehicule() %>" style="margin-right:10px;">✏️ Editer</a>
                             <form method="post" action="<%= request.getContextPath() %>/vehicules/delete" style="display:inline;">
                                 <input type="hidden" name="id_vehicule" value="<%= v.getIdVehicule() %>">
                                 <button type="submit" class="btn-delete" onclick="return confirm('Êtes-vous sûr ?');">Supprimer</button>
