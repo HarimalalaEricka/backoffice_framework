@@ -4,8 +4,11 @@ import com.framework.annotation.*;
 import com.framework.model.ModelView;
 import com.app.models.Vehicule;
 import com.app.repository.VehiculeRepository;
+import com.app.repository.TokenRepository;
 import com.app.service.VehiculeService;
 import java.util.List;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 
 /**
  * Contrôleur des véhicules utilisant le Framework avec ModelView.
@@ -16,19 +19,34 @@ public class VehiculeController {
 
     private static final String URL = "jdbc:postgresql://localhost:5432/gestion_ticket";
     private static final String USERNAME = "postgres";
-    private static final String PASSWORD = "postgres";
+    private static final String PASSWORD = "kanto";
 
     /**
      * Affiche le formulaire d'ajout de véhicule et la liste des véhicules
      */
     @HandleGet("/vehicules/insert")
-    public ModelView insertForm() {
+    public ModelView insertForm(HttpServletRequest request) {
         ModelView mv = new ModelView();
         
-        VehiculeRepository vehiculeRepo = new VehiculeRepository(URL, USERNAME, PASSWORD);
-        List<Vehicule> vehicules = vehiculeRepo.findAll();
+        // Vérifier le token stocké en session
+        HttpSession session = request.getSession(false);
+        String token = null;
+        if (session != null) {
+            token = (String) session.getAttribute("token");
+        }
         
-        mv.addAttribute("vehicules", vehicules);
+        TokenRepository tokenRepo = new TokenRepository(URL, USERNAME, PASSWORD);
+        String tokenError = tokenRepo.getTokenErrorMessage(token);
+        
+        if (tokenError != null) {
+            mv.addAttribute("error", tokenError);
+            mv.addAttribute("vehicules", new java.util.ArrayList<>());
+        } else {
+            VehiculeRepository vehiculeRepo = new VehiculeRepository(URL, USERNAME, PASSWORD);
+            List<Vehicule> vehicules = vehiculeRepo.findAll();
+            mv.addAttribute("vehicules", vehicules);
+        }
+        
         mv.setView("/vehicules/vehicules.jsp");
         return mv;
     }

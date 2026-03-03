@@ -41,6 +41,32 @@ public class TokenRepository {
     }
 
     /**
+     * Vérifie si un token existe et n'est pas expiré
+     */
+    public boolean isTokenValid(String token) {
+        Token t = findByToken(token);
+        if (t == null) {
+            return false;
+        }
+        // Vérifier si le token n'est pas expiré
+        return t.getDateHeureExpiration().isAfter(java.time.LocalDateTime.now());
+    }
+
+    /**
+     * Récupère le message d'erreur si le token est expiré
+     */
+    public String getTokenErrorMessage(String token) {
+        Token t = findByToken(token);
+        if (t == null) {
+            return "Token invalide ou non trouvé.";
+        }
+        if (t.getDateHeureExpiration().isBefore(java.time.LocalDateTime.now())) {
+            return "Token expiré. Veuillez vous reconnecter.";
+        }
+        return null;
+    }
+
+    /**
      * Indique si la connexion JDBC est établie
      */
     public boolean isConnected() {

@@ -63,7 +63,12 @@ FrontOffice
             - Réutilisation automatique pour chaque appel API
             - Responsable : ETU003350
 
-        Tache : Gestion Expiration
+        Tache : Gestion Expiration [IMPLEMNETEE]
             - Si API retourne token expiré :
-                Message d’erreur utilisateur
+                Message d'erreur utilisateur
+            - Implémentation : 
+                * Méthode TokenRepository.isTokenValid() pour vérifier l'expiration
+                * Méthode TokenRepository.getTokenErrorMessage() pour récupérer le message d'erreur
+                * Vérification au chargement de la page des véhicules
+                * Affichage du message d'erreur si token expiré
             - Responsable : ETU003324
