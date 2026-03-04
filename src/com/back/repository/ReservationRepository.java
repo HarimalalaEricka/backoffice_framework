@@ -75,15 +75,18 @@ public class ReservationRepository {
             return reservations;
         }
 
-        String sql = "SELECT id, client_id, nbr_pers, date_heure, hotel_id FROM Reservation WHERE DATE(date_heure) = ?";
+        // Modifié : ajout du tri par date_heure_arrivee ASC, puis nbr_pers DESC
+        String sql = "SELECT idReservation, client_id, nbr_pers, date_heure_arrivee, hotel_id " +
+                     "FROM Reservation WHERE DATE(date_heure_arrivee) = ? " +
+                     "ORDER BY date_heure_arrivee ASC, nbr_pers DESC";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setDate(1, Date.valueOf(date));
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    int idReservation = rs.getInt("id");
+                    int idReservation = rs.getInt("idReservation");
                     String clientId = rs.getString("client_id");
                     int nbrPers = rs.getInt("nbr_pers");
-                    java.time.LocalDateTime dateHeureArrivee = rs.getTimestamp("date_heure").toLocalDateTime();
+                    java.time.LocalDateTime dateHeureArrivee = rs.getTimestamp("date_heure_arrivee").toLocalDateTime();
                     int hotelId = rs.getInt("hotel_id");
                     reservations.add(new Reservation(idReservation, clientId, nbrPers, dateHeureArrivee, hotelId));
                 }
