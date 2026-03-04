@@ -27,13 +27,15 @@ public class HotelRepository {
             return hotels;
         }
 
-        String sql = "SELECT id, nom FROM Hotel";
+        String sql = "SELECT idHotel, nom, code, libelle FROM Hotel";
         try (PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                int idHotel = rs.getInt("id");
+                int idHotel = rs.getInt("idHotel");
                 String nom = rs.getString("nom");
-                hotels.add(new Hotel(idHotel, nom));
+                String code = rs.getString("code");
+                String libelle = rs.getString("libelle");
+                hotels.add(new Hotel(idHotel, nom, code, libelle));
             }
         } catch (SQLException e) {
             System.err.println("Erreur lors de la récupération des hôtels : " + e.getMessage());

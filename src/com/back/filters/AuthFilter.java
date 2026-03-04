@@ -19,8 +19,8 @@ public class AuthFilter implements Filter {
         String url = "jdbc:postgresql://localhost:5432/gestion_ticket";
         // Essayer plusieurs credentials connus (fallback si nécessaire)
         String[][] creds = {
-            {"postgres", "postgres"},
-            {"postgres", "postgres"}
+            {"postgres", "kanto"},
+            {"postgres", "kanto"}
         };
         for (String[] c : creds) {
             try {

@@ -61,13 +61,15 @@ public class Connexion {
             return hotels;
         }
 
-        String sql = "SELECT id, nom FROM Hotel";
+        String sql = "SELECT idHotel, nom, code, libelle FROM Hotel";
         try (PreparedStatement ps = connection.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                int id = rs.getInt("id");
+                int id = rs.getInt("idHotel");
                 String nom = rs.getString("nom");
-                hotels.add(new Hotel(id, nom));
+                String code = rs.getString("code");
+                String libelle = rs.getString("libelle");
+                hotels.add(new Hotel(id, nom, code, libelle));
             }
         } catch (SQLException e) {
             System.err.println("Erreur lors de la récupération des hotels : " + e.getMessage());

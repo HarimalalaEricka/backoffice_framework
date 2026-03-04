@@ -5,6 +5,7 @@ Devs :
 
 BackOffice
     Module : Vehicule
+        Note : la table Hotel contient désormais `code` et `libelle` pour différencier hôtels et aéroports ; les interfaces doivent en tenir compte.
         Tache : Création de Vehicule
             - Affichage : Formulaire d’ajout véhicule (reference,nbr_places,type_carburant (D, ES, EL, H))
             - Metier : 
