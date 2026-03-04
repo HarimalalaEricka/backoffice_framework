@@ -13,7 +13,7 @@ BackOffice
             Métier:
             Responsable: ETU003366
 
-        Tache : Assignation Reservation → Vehicule (Logique Métier)
+        Tache : Assignation Reservation → Vehicule
             Metier :
                 - Capacité véhicule ≥ nbr personnes
                 - Capacité la plus proche
@@ -31,14 +31,6 @@ BackOffice
             Responsable : ETU003366
 
 FrontOffice
-    Module : Reservation
-        Tache : Affichage Liste Reservation avec Lieu
-            Affichage :
-                - Reservation
-                - Lieu Depart
-                - Lieu Destination
-            Responsable : ETU003366
-
     Module : Assignation
         Tache : Affichage Resultat Assignation
             Affichage :
