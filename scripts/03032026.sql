@@ -67,6 +67,6 @@ CREATE TABLE Assignation (
     idAssignation SERIAL PRIMARY KEY,
     reservation_id INTEGER NOT NULL REFERENCES Reservation(idReservation) ON DELETE CASCADE,
     vehicule_id INTEGER NOT NULL REFERENCES Vehicule(idVehicule) ON DELETE CASCADE,
-    date_planification DATE NOT NULL,
+    date_heure_planification TIMESTAMP NOT NULL,
     UNIQUE (reservation_id)
 );
