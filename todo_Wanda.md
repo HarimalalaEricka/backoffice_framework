@@ -49,18 +49,18 @@ Implémenter la planification automatique des réservations vers les véhicules 
 - [x] Getters/Setters
 
 #### PlanificationService.java
-- [ ] Créer la classe dans `src/com/back/planification/`
-- [ ] Méthode principale `public PlanificationResult planifierJour(LocalDate date)`
-- [ ] Méthode interne `private Map<LocalDateTime, List<Reservation>> grouperParVol(List<Reservation> list)`
-- [ ] Méthode interne `private Vehicule trouverVehiculeOptimal(int totalPersonnes, List<Vehicule> disponibles, Set<Integer> vehiculesUtilises)`
-- [ ] Méthode interne `private void enregistrerAssignation(List<Reservation> group, Vehicule vehicule, LocalDate date)`
+- [x] Créer la classe dans `src/com/back/planification/`
+- [x] Méthode principale `public PlanificationResult planifierJour(LocalDate date)`
+- [x] Méthode interne `private Map<LocalDateTime, List<Reservation>> grouperParVol(List<Reservation> list)`
+- [x] Méthode interne `private Vehicule trouverVehiculeOptimal(int totalPersonnes, List<Vehicule> disponibles, Set<Integer> vehiculesUtilises)`
+- [x] Méthode interne `private void enregistrerAssignation(List<Reservation> group, Vehicule vehicule, LocalDate date)`
 
 #### PlanificationController.java
-- [ ] Créer la classe dans `src/com/back/controllers/`
-- [ ] Annoter avec `@Controller`
-- [ ] Route `@HandleGet("/planification/form")` - déjà partiellement dans [PlanificationController.java](src/com/back/controllers/PlanificationController.java)
-- [ ] Route `@HandlePost("/planification")` pour lancer la planification
-- [ ] Route `@HandleGet("/api/planification")` avec `@JsonResponse` pour récupérer le résultat
+- [x] Créer la classe dans `src/com/back/controllers/`
+- [x] Annoter avec `@Controller`
+- [x] Route `@HandleGet("/planification/form")` - déjà partiellement dans [PlanificationController.java](src/com/back/controllers/PlanificationController.java)
+- [x] Route `@HandlePost("/planification")` pour lancer la planification
+- [x] Route `@HandleGet("/api/planification")` avec `@JsonResponse` pour récupérer le résultat
 
 ---
 
