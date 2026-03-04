@@ -36,6 +36,12 @@ BackOffice
                 Calcul date_heure_expiration
                 Insertion en base
             - Responsable : ETU003350
+            
+    Module : Gestion Token Front
+        Tache : Stockage du Token
+            - Sauvegarde du token : localStorage ou sessionStorage
+            - Réutilisation automatique pour chaque appel API
+            - Responsable : ETU003350
 
         Tache : Vérification de Token (Protection API)
             - Implémentation du Middleware / Filtre HTTP
@@ -47,29 +53,4 @@ BackOffice
                 Non expiration
             - Appliquer cette vérification avant l’exécution de toute API protégée (ex: Liste des Reservations, liste des vehicules)
             - Liste : vérifier la présence et la validité (non expiration) du token avant de renvoyer les données.
-            - Responsable : ETU003324
-
-
-FrontOffice
-    Module : Reservation
-        Tache : Appel API avec Token
-            - Metier : 
-                Ajouter token dans Header lors des appels :
-                    /api/vehicules
-            - Responsable : ETU003350
-
-    Module : Gestion Token Front
-        Tache : Stockage du Token
-            - Sauvegarde du token : localStorage ou sessionStorage
-            - Réutilisation automatique pour chaque appel API
-            - Responsable : ETU003350
-
-        Tache : Gestion Expiration [IMPLEMNETEE]
-            - Si API retourne token expiré :
-                Message d'erreur utilisateur
-            - Implémentation : 
-                * Méthode TokenRepository.isTokenValid() pour vérifier l'expiration
-                * Méthode TokenRepository.getTokenErrorMessage() pour récupérer le message d'erreur
-                * Vérification au chargement de la page des véhicules
-                * Affichage du message d'erreur si token expiré
             - Responsable : ETU003324

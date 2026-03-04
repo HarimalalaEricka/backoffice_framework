@@ -1,0 +1,47 @@
+TL: ETU 003324 / Harenkantou
+
+Devs: 
+    ETU003350 / HarimalalaEricka
+    ETU003366 / vatosoa-wanda
+
+BackOffice
+    Module: Planification
+        Tache: Interface Planification (Page 1)
+            Affichage: 
+                -Champ Date
+                -Bouton Planifier
+            Métier:
+            Responsable: ETU003366
+
+        Tache : Assignation Reservation → Vehicule (Logique Métier)
+            Metier :
+                - Capacité véhicule ≥ nbr personnes
+                - Capacité la plus proche
+                - Si égalité → priorité Diesel
+                - Sinon → Random
+                - Si véhicules insuffisants → priorité nbr personnes plus grand
+                - Priorité proche aeroport
+            Responsable : ETU003350  
+
+     
+        Tache : Affichage Résultat Planification (Page 2)
+            Affichage :
+                - Liste Vehicules avec leurs Reservations
+                - Liste Reservation sans vehicule
+            Responsable : ETU003366
+
+FrontOffice
+    Module : Reservation
+        Tache : Affichage Liste Reservation avec Lieu
+            Affichage :
+                - Reservation
+                - Lieu Depart
+                - Lieu Destination
+            Responsable : ETU003366
+
+    Module : Assignation
+        Tache : Affichage Resultat Assignation
+            Affichage :
+                - Vehicule → Liste<Reservation>
+                - Indication Depart aeroport / Retour aeroport
+            Responsable : ETU003350
