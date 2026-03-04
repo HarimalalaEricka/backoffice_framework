@@ -25,27 +25,13 @@ public class VehiculeController {
      * Affiche le formulaire d'ajout de véhicule et la liste des véhicules
      */
     @HandleGet("/vehicules/insert")
-    public ModelView insertForm(HttpServletRequest request) {
+    public ModelView insertForm() {
         ModelView mv = new ModelView();
         
-        // Vérifier le token stocké en session
-        HttpSession session = request.getSession(false);
-        String token = null;
-        if (session != null) {
-            token = (String) session.getAttribute("token");
-        }
-        
-        TokenRepository tokenRepo = new TokenRepository(URL, USERNAME, PASSWORD);
-        String tokenError = tokenRepo.getTokenErrorMessage(token);
-        
-        if (tokenError != null) {
-            mv.addAttribute("error", tokenError);
-            mv.addAttribute("vehicules", new java.util.ArrayList<>());
-        } else {
-            VehiculeRepository vehiculeRepo = new VehiculeRepository(URL, USERNAME, PASSWORD);
-            List<Vehicule> vehicules = vehiculeRepo.findAll();
-            mv.addAttribute("vehicules", vehicules);
-        }
+        // Afficher la liste des véhicules
+        VehiculeRepository vehiculeRepo = new VehiculeRepository(URL, USERNAME, PASSWORD);
+        List<Vehicule> vehicules = vehiculeRepo.findAll();
+        mv.addAttribute("vehicules", vehicules);
         
         mv.setView("/vehicules/vehicules.jsp");
         return mv;

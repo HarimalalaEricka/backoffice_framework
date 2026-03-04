@@ -6,7 +6,7 @@ Devs :
 BackOffice
     Module : Reservation
         Tache : Creation de Reservation
-            - Affichage : formulaire de Reservation
+            - Affichage : formulaire de Reservation (le menu d'hôtels doit afficher code + nom + libellé pour distinguer hôtel/aéroport)
             - Metier : Insertion dans la base 
             - Responsable : ETU003324
 
