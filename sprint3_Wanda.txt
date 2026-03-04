@@ -1,0 +1,389 @@
+Parfait 👍 on entre dans la **logique métier principale du projet** : la planification.
+
+Ici je te fais un **TO DO backend détaillé**, structuré comme vos sprints précédents, mais orienté :
+
+* ✅ Base de données
+* ✅ Métier (algorithme d’assignation)
+* ✅ API
+* ✅ Intégration
+* ✅ Classes / Méthodes à créer
+
+On suppose que ce sprint est pris par **1 développeur backend principal**.
+
+---
+
+# ✅ SPRINT 3 – PLANIFICATION JOUR J
+
+## 🎯 Objectif
+
+Implémenter la planification automatique des réservations vers les véhicules pour une date donnée.
+
+Résultat attendu :
+
+* Liste des véhicules assignés
+* Liste des réservations non assignées
+* Respect strict des règles métier
+
+⚠ Pour ce sprint :
+
+> On ne prend PAS encore en compte le temps d’attente (TA).
+
+---
+
+# 🧠 MODULE : PLANIFICATION
+
+---
+
+# 🔵 1️⃣ BASE DE DONNÉES
+
+## 🔹 Vérification / Ajustement
+
+La table `Assignation` existe déjà :
+
+```sql
+CREATE TABLE Assignation (
+    idAssignation SERIAL PRIMARY KEY,
+    reservation_id INTEGER NOT NULL REFERENCES Reservation(idReservation) ON DELETE CASCADE,
+    vehicule_id INTEGER NOT NULL REFERENCES Vehicule(idVehicule) ON DELETE CASCADE,
+    date_heure_planification TIMESTAMP NOT NULL,
+    UNIQUE (reservation_id)
+);
+```
+
+### ✅ À vérifier :
+
+* Index sur `date_planification`
+* Index sur `vehicule_id`
+
+---
+
+# 🟣 2️⃣ BACKEND – STRUCTURE DES CLASSES
+
+---
+
+## 📦 Package : planification
+
+---
+
+## 1️⃣ PlanificationController
+
+Responsable : API
+
+### Méthodes :
+
+```java
+public ResponseEntity<?> planifier(LocalDate date);
+public ResponseEntity<?> getPlanification(LocalDate date);
+```
+
+---
+
+## 2️⃣ PlanificationService
+
+Responsable : Logique métier principale
+
+### Méthode principale :
+
+```java
+public PlanificationResult planifierJour(LocalDate date);
+```
+
+---
+
+## 3️⃣ PlanificationResult (DTO)
+
+Contient :
+
+```java
+List<VehiculePlanDTO> vehiculesAssignes;
+List<Reservation> reservationsNonAssignees;
+```
+
+---
+
+## 4️⃣ VehiculePlanDTO
+
+```java
+Vehicule vehicule;
+List<Reservation> reservations;
+```
+
+---
+
+## 5️⃣ AssignationRepository
+
+Méthodes :
+
+```java
+boolean existsByReservationId(int reservationId);
+void save(Assignation assignation);
+List<Assignation> findByDate(LocalDate date);
+```
+
+---
+
+# 🟢 3️⃣ LOGIQUE MÉTIER – RÈGLES À IMPLÉMENTER
+
+---
+
+# Étape 1 : Récupérer les réservations du jour
+
+Dans `PlanificationService` :
+
+```java
+List<Reservation> reservations = 
+    reservationRepository.findByDate(date);
+```
+
+⚠ Trier par :
+
+* date_heure_arrivee ASC
+* nbr_pers DESC (important si manque de véhicule)
+
+---
+
+# Étape 2 : Grouper les réservations par vol
+
+Règle :
+
+> Même vol = même date + même heure d’arrivée
+> → même voiture si possible 
+> les personnes d'une reservation sont inseparable (ex : C001 -> 5 pers , donc ces 5 sont tjrs assigne ensemble)
+Implémentation :
+
+```java
+Map<LocalDateTime, List<Reservation>> grouped =
+    reservations.stream()
+    .collect(Collectors.groupingBy(Reservation::getDateHeureArrivee));
+```
+
+---
+
+# Étape 3 : Pour chaque groupe (vol)
+
+### Calcul :
+
+```java
+int totalPersonnes = somme(nbr_pers);
+```
+
+---
+
+# Étape 4 : Trouver véhicule idéal
+
+Règle :
+
+1️⃣ Capacité ≥ totalPersonnes
+2️⃣ Capacité la plus proche
+3️⃣ Si égalité → Diesel prioritaire
+4️⃣ Sinon → Random
+
+Implémentation :
+
+```java
+List<Vehicule> disponibles = vehiculeRepository.findAll();
+```
+
+Filtrer :
+
+```java
+vehicule.nbr_places >= totalPersonnes
+```
+
+Trier par :
+
+* nbr_places ASC
+* type_carburant = 'D' prioritaire
+
+---
+
+# Étape 5 : Si aucun véhicule suffisant
+
+Règle :
+
+> Si pas assez de véhicule →
+> Les groupes avec plus grand nombre passent en premier.
+
+Donc :
+
+Avant boucle principale :
+
+```java
+groupes triés par totalPersonnes DESC
+```
+
+---
+
+# Étape 6 : Enregistrer assignation
+
+Pour chaque réservation :
+
+```java
+Assignation a = new Assignation();
+a.setReservationId(...);
+a.setVehiculeId(...);
+a.setDatePlanification(date);
+assignationRepository.save(a);
+```
+
+---
+
+# 🔴 IMPORTANT – CONTRAINTES À GÉRER
+
+### ❌ Ne pas réassigner une réservation déjà assignée
+
+```java
+if(assignationRepository.existsByReservationId(resa.getId()))
+    continue;
+```
+
+---
+
+### ❌ Un véhicule ne peut pas être utilisé 2 fois le même jour
+
+Il faut maintenir :
+
+```java
+Set<Integer> vehiculesUtilises
+```
+
+---
+
+# 🟡 4️⃣ INTÉGRATION API
+
+---
+
+## Endpoint
+
+```
+POST /api/planification?date=2026-03-10
+```
+
+### Retour JSON :
+
+```json
+{
+  "vehiculesAssignes": [
+    {
+      "vehicule": { ... },
+      "reservations": [ ... ]
+    }
+  ],
+  "reservationsNonAssignees": [ ... ]
+}
+```
+
+---
+
+# 🟠 5️⃣ AFFICHAGE BACKOFFICE
+
+---
+
+## Page 1 – Formulaire
+
+* Input date
+* Bouton "Planifier"
+
+Appel :
+
+```
+POST /api/planification
+```
+
+---
+
+## Page 2 – Résultat
+
+Afficher :
+
+### 🚗 Liste véhicules assignés
+
+| Vehicule | Reservations | Départ Aéroport | Retour |
+| -------- | ------------ | --------------- | ------ |
+
+---
+
+### ❌ Liste réservations non assignées
+
+---
+
+# 🟤 6️⃣ MÉTHODES À CODER DANS PlanificationService
+
+---
+
+### ✔ méthode principale
+
+```java
+public PlanificationResult planifierJour(LocalDate date)
+```
+
+---
+
+### ✔ méthodes internes
+
+```java
+private Map<LocalDateTime, List<Reservation>> grouperParVol(List<Reservation> list);
+
+private Vehicule trouverVehiculeOptimal(int totalPersonnes, 
+                                        List<Vehicule> disponibles);
+
+private void enregistrerAssignation(List<Reservation> group,
+                                    Vehicule vehicule,
+                                    LocalDate date);
+```
+
+---
+
+# 🟢 7️⃣ TESTS À FAIRE
+
+---
+
+### ✔ Cas simple
+
+* 1 groupe
+* 1 véhicule
+
+### ✔ Cas capacité égale
+
+* 2 véhicules même capacité
+  → Diesel choisi
+
+### ✔ Cas pas assez capacité
+
+→ Non assigné
+
+### ✔ Cas plusieurs vols
+
+→ Véhicules distincts
+
+### ✔ Cas réservation déjà assignée
+
+→ ignorée
+
+---
+
+# 🧩 8️⃣ STRUCTURE FINALE DU MODULE
+
+```
+planification/
+    PlanificationController.java
+    PlanificationService.java
+    PlanificationResult.java
+    VehiculePlanDTO.java
+    AssignationRepository.java
+```
+
+---
+
+# 🎯 Résumé responsabilités développeur backend
+
+| Type        | Action                         |
+| ----------- | ------------------------------ |
+| Base        | Vérifier index + contraintes   |
+| Métier      | Implémenter algorithme complet |
+| Sécurité    | API protégée par token         |
+| Intégration | Endpoint POST planification    |
+| Validation  | Ne pas réassigner              |
+| Tests       | Tous cas métier                |
+
+---
