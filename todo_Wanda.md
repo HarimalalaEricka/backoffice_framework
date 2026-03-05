@@ -68,34 +68,29 @@ Implémenter la planification automatique des réservations vers les véhicules 
 
 ### Dans PlanificationService.planifierJour(LocalDate date)
 
-- [ ] **Étape 1** : Récupérer les réservations du jour via `ReservationRepository.findByDate(date)`
-- [ ] **Étape 2** : Grouper par vol (même `date_heure_arrivee`)
-  ```java
-  Map<LocalDateTime, List<Reservation>> grouped = 
-      reservations.stream()
-      .collect(Collectors.groupingBy(Reservation::getDateHeureArrivee));
-  ```
-- [ ] **Étape 3** : Trier les groupes par `totalPersonnes DESC` (priorité aux grands groupes)
-- [ ] **Étape 4** : Pour chaque groupe, calculer `int totalPersonnes = somme(nbr_pers)`
-- [ ] **Étape 5** : Trouver véhicule optimal selon règles :
-  - [ ] Capacité ≥ totalPersonnes
-  - [ ] Capacité la plus proche
-  - [ ] Si égalité → Diesel ('D') prioritaire
-  - [ ] Sinon → Random
-- [ ] **Étape 6** : Vérifier contraintes :
-  - [ ] Ne pas réassigner une réservation déjà assignée (`existsByReservationId`)
-  - [ ] Un véhicule ne peut pas être utilisé 2 fois le même jour (`Set<Integer> vehiculesUtilises`)
-- [ ] **Étape 7** : Enregistrer assignation via `AssignationRepository.save()`
-- [ ] **Étape 8** : Collecter les réservations non assignées
+- [x] **Étape 1** : Récupérer les réservations du jour via `ReservationRepository.findByDate(date)`
+- [x] **Étape 2** : Grouper par vol (même `date_heure_arrivee`)
+- [x] **Étape 3** : Trier les groupes par `totalPersonnes DESC` (priorité aux grands groupes)
+- [x] **Étape 4** : Pour chaque groupe, calculer `int totalPersonnes = somme(nbr_pers)`
+- [x] **Étape 5** : Trouver véhicule optimal selon règles :
+  - [x] Capacité ≥ totalPersonnes
+  - [x] Capacité la plus proche
+  - [x] Si égalité → Diesel ('D') prioritaire
+  - [x] Sinon → Random
+- [x] **Étape 6** : Vérifier contraintes :
+  - [x] Ne pas réassigner une réservation déjà assignée (`existsByReservationId`)
+  - [x] Un véhicule ne peut pas être utilisé 2 fois le même jour (`Set<Integer> vehiculesUtilises`)
+- [x] **Étape 7** : Enregistrer assignation via `AssignationRepository.save()`
+- [x] **Étape 8** : Collecter les réservations non assignées
 
 ---
 
 ## 🟡 4️⃣ INTÉGRATION API
 
 ### Endpoint POST /api/planification
-- [ ] Protéger par token (utiliser [AuthFilter.java](src/com/back/filters/AuthFilter.java) existant)
-- [ ] Paramètre `date` (format: `2026-03-10`)
-- [ ] Retour JSON :
+- [x] Protéger par token (utiliser [AuthFilter.java](src/com/back/filters/AuthFilter.java) existant)
+- [x] Paramètre `date` (format: `2026-03-10`)
+- [x] Retour JSON :
   ```json
   {
     "vehiculesAssignes": [
@@ -113,13 +108,13 @@ Implémenter la planification automatique des réservations vers les véhicules 
 ## 🟠 5️⃣ AFFICHAGE BACKOFFICE
 
 ### Page 1 – Formulaire (EXISTANT)
-- [ ] Vérifier [planifier.jsp](WebContent/planifier.jsp) existant
-- [ ] S'assurer que le formulaire pointe vers `/planification` en POST
+- [x] Vérifier [planifier.jsp](WebContent/planifier.jsp) existant
+- [x] S'assurer que le formulaire pointe vers `/planification` en POST
 
 ### Page 2 – Résultat (À CRÉER)
-- [ ] Créer `WebContent/planification_result.jsp`
-- [ ] Afficher tableau des véhicules assignés avec leurs réservations
-- [ ] Afficher liste des réservations non assignées
+- [x] Créer `WebContent/planification_result.jsp`
+- [x] Afficher tableau des véhicules assignés avec leurs réservations
+- [x] Afficher liste des réservations non assignées
 
 ---
 
