@@ -9,13 +9,12 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 
-    /** * Contrôleur pour la planification des réservations vers les véhicules. * Gère l'affichage du formulaire, l'exécution de la planification et l'API JSON. */@Controllerpublic class PlanificationController {    private static final String DB_URL = "jdbc:postgresql://localhost:5432/gestion_ticket";    private static final String DB_USER = "postgres";    private static final String DB_PASSWORD = "postgres";    /**     * Affiche le formulaire de planification (Page 1).     * Route: GET /planification/form     */    @HandleGet("/planification/form")    public ModelView showForm() {        ModelView mv = new ModelView();        mv.setView("/planifier.jsp");        return mv;    }    /**
-     * Lance la planification pour une date donnée (Page 2 - Résultat).
-     * Route: POST /planification
-     * 
-     * param datePlanification La date au format YYYY-MM-DD
-     * retourne ModelView avec les résultats de la planification
-    **/
+@Controller
+public class PlanificationController {    
+        private static final String DB_URL = "jdbc:postgresql://localhost:5432/gestion_ticket";    
+        private static final String DB_USER = "postgres";    
+        private static final String DB_PASSWORD = "postgres";    
+       
     @HandlePost("/planification")
     public ModelView executerPlanification(@RequestParam("datePlanification") String datePlanification) {
         ModelView mv = new ModelView();

@@ -134,10 +134,10 @@ Implémenter la planification automatique des réservations vers les véhicules 
 
 ## 🧪 7️⃣ TESTS À FAIRE
 
-- [ ] **Cas simple** : 1 groupe, 1 véhicule disponible
-- [ ] **Cas capacité égale** : 2 véhicules même capacité → Diesel choisi
-- [ ] **Cas pas assez capacité** : Réservation → Non assignée
-- [ ] **Cas plusieurs vols** : Véhicules distincts assignés
+- [x] **Cas simple** : 1 groupe, 1 véhicule disponible
+- [x] **Cas capacité égale** : 2 véhicules même capacité → Diesel choisi
+- [x] **Cas pas assez capacité** : Réservation → Non assignée
+- [x] **Cas plusieurs vols** : Véhicules distincts assignés
 - [ ] **Cas réservation déjà assignée** : Ignorée
 - [ ] **Cas véhicule déjà utilisé** : Non réutilisé
 

@@ -70,8 +70,8 @@ INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers,
 
 -- Véhicules pour Cas 2 (même capacité, carburants différents)
 INSERT INTO Vehicule (idVehicule, reference, nbr_places, type_carburant) VALUES
-(2, 'V002-DIESEL', 6, 'D'),    -- Diesel → Prioritaire
-(3, 'V003-ESSENCE', 6, 'ES');  -- Essence → Non prioritaire
+(2, 'V002-DIESEL', 6, 'D'),    
+(3, 'V003-ESSENCE', 6, 'ES'); 
 
 -- Réservations pour Cas 2
 INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
@@ -100,7 +100,7 @@ INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers,
 -- =================================================================
 -- CAS 4 : PLUSIEURS VOLS - Véhicules distincts assignés
 -- Date de test : 2026-03-13
--- Attendu : V006 pour vol 08h00, V007 pour vol 12h00, V008 pour vol 18h00
+-- Règle : capacité >= totalPersonnes ET la plus proche, puis Diesel si égalité
 -- =================================================================
 
 -- Véhicules pour Cas 4
@@ -124,10 +124,10 @@ INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers,
 INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
 (10, 'CLIENT010', '2026-03-13 18:00:00', 4, 2);
 
--- Attendu :
--- - Groupe 08h00 (7 pers) → V006-VOL1 (10 places, Diesel)
--- - Groupe 12h00 (5 pers) → V008-VOL3 (6 places, plus proche capacité)
--- - Groupe 18h00 (4 pers) → V007-VOL2 (8 places, restant)
+-- ATTENDU CORRIGÉ (selon règles métier : capacité >= ET plus proche) :
+-- - Groupe 08h00 (7 pers) → V007-VOL2 (8 places) ← Plus proche de 7, pas V006 (10)
+-- - Groupe 12h00 (5 pers) → V008-VOL3 (6 places) ← Plus proche de 5
+-- - Groupe 18h00 (4 pers) → V006-VOL1 (10 places) ← Seul véhicule restant
 
 -- =================================================================
 -- CAS 5 : RÉSERVATION DÉJÀ ASSIGNÉE - Ignorée
