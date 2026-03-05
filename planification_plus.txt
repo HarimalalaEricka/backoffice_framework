@@ -1,0 +1,51 @@
+Exemple :
+On a :
+-- Hôtels
+INSERT INTO Hotel (idHotel, nom, code, libelle) VALUES
+(1, 'Aéroport Ivato', 'AIV', 'aeroport'),
+(2, 'Hotel Carlton', 'HCT', 'hotel'),
+(3, 'Hotel Colbert', 'HCB', 'hotel'),
+(4, 'Hotel Ibis', 'HIB', 'hotel'),
+(5, 'Hotel Panorama', 'HPN', 'hotel');
+
+-- Paramètres
+INSERT INTO Parametre (idParametre, vitesse_moyenne, temps_attente) VALUES
+(1, 40, 15);
+
+-- Distances
+INSERT INTO Distance (from_hotel_id, to_hotel_id, distance_km) VALUES
+(1, 2, 25),
+(1, 3, 20),
+(1, 4, 18),
+(1, 5, 30),
+(2, 3, 5),
+(2, 4, 8),
+(2, 5, 10),
+(3, 4, 6),
+(3, 5, 12),
+(4, 5, 15);
+
+Liste des distances tries par la distance le plus pres de l'aeroport jusqu'au plus loin
+ iddistance | from_hotel_id | to_hotel_id | distance_km
+------------+---------------+-------------+-------------
+          3 |             1 |           4 |          18
+          2 |             1 |           3 |          20
+          1 |             1 |           2 |          25
+          4 |             1 |           5 |          30
+
+- Un vehicule V1 , 10 places
+- une reservation R1 arrivee le 13-03-2026 a 10h pour 5 pers vers Hotel Ibis
+- une reservation R2 arrivee le 13-03-2026 a 10h pour 3 pers vers Hotel Colbert
+
+- une autre reservation R3 arrive le 13-03-2026 a 15h  pour 6 pers vers Hotel Colbert
+
+Parametre :
+INSERT INTO Parametre (idParametre, vitesse_moyenne, temps_attente) VALUES
+(1, 40, 15);
+
+Planification pour le 13-03-2026
+- V1 :
+    depart 10h :
+        R1 -> 5
+        R1 -> 3
+
