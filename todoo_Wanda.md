@@ -194,3 +194,164 @@ WebContent/
    - `setReservationId(int)`
    - `setVehiculeId(int)`
    - `setDateHeurePlanification(LocalDateTime)`
+
+
+---
+
+
+
+## [SUITE ERICKA]
+
+# 🚗 SPRINT 3 – RÉUTILISATION DES VÉHICULES (Calcul Trajet) 
+
+## 🎯 Objectif
+Permettre à un véhicule d'effectuer **plusieurs trajets par jour** en calculant son heure de retour à l'aéroport.
+
+---
+
+## 🔵 9️⃣ TABLES EXISTANTES À UTILISER
+
+| Table | Utilisation |
+|-------|-------------|
+| `Distance` | Distances entre aéroport et hôtels (km) |
+| `Parametre` | `vitesse_moyenne` (km/h), `temps_attente` (min) |
+| `Hotel` | Identifier l'aéroport (`libelle = 'aeroport'`) |
+
+---
+
+## 🟣 🔟 CLASSES À CRÉER / MODIFIER
+
+### 📦 Package : `com.app.repository`
+
+#### DistanceRepository.java (À CRÉER)
+- [ ] Créer la classe `DistanceRepository` dans [src/com/back/repository/](src/com/back/repository/)
+- [ ] Méthode `int getDistance(int fromHotelId, int toHotelId)` — retourne distance en km
+- [ ] Méthode `List<Distance> findAll()`
+
+#### ParametreRepository.java (À CRÉER)
+- [ ] Créer la classe `ParametreRepository` dans [src/com/back/repository/](src/com/back/repository/)
+- [ ] Méthode `Parametre getParametre()` — retourne vitesse_moyenne et temps_attente
+
+#### HotelRepository.java (EXISTANT)
+- [ ] Vérifier méthode `Hotel findAeroport()` — retourne l'hôtel avec `libelle = 'aeroport'`
+- [ ] Si absente, l'ajouter
+
+---
+
+### 📦 Package : `com.app.planification`
+
+#### TrajetCalculator.java (À CRÉER)
+- [ ] Créer la classe dans `src/com/back/planification/`
+- [ ] Attribut `DistanceRepository distanceRepository`
+- [ ] Attribut `ParametreRepository parametreRepository`
+- [ ] Attribut `HotelRepository hotelRepository`
+- [ ] Méthode `LocalDateTime calculerHeureRetour(LocalDateTime heureDepart, List<Reservation> reservations)`
+
+---
+
+### 📦 Package : `com.app.planification` (EXISTANT)
+
+#### PlanificationService.java (MODIFIER)
+- [ ] Remplacer `Set<Integer> vehiculesUtilises` par `Map<Integer, LocalDateTime> vehiculesHeureRetour`
+- [ ] Modifier `trouverVehiculeOptimal()` pour vérifier `heureRetour <= heureVolActuel`
+- [ ] Après assignation, calculer et stocker `heureRetour` du véhicule
+
+---
+
+## 🟢 1️⃣1️⃣ LOGIQUE MÉTIER – CALCUL TRAJET
+
+### Formules
+
+### Algorithme : calculerHeureRetour(heureDepart, reservations)
+
+- [ ] **Étape 1** : Récupérer l'ID de l'aéroport via `HotelRepository.findAeroport()`
+- [ ] **Étape 2** : Récupérer les paramètres (vitesse_moyenne, temps_attente)
+- [ ] **Étape 3** : Construire le trajet :
+
+- [ ] **Étape 4** : Trier les hôtels par distance croissante depuis l'aéroport (optimisation)
+- [ ] **Étape 5** : Pour chaque segment, calculer :
+    - int distanceKm = distanceRepository.getDistance(fromId, toId);
+    - double tempsHeures = distanceKm / vitesseMoyenne;
+    - int tempsMinutes = (int) (tempsHeures * 60) + tempsAttente;
+    - heureActuelle = heureActuelle.plusMinutes(tempsMinutes);
+
+## 🟢 1️⃣2️⃣ LOGIQUE MÉTIER – RÉUTILISATION VÉHICULE
+## Dans PlanificationService.planifierJour(LocalDate date)
+- [ ] Modifier Étape 6 : Un véhicule est disponible si :
+    Véhicule jamais utilisé OU déjà revenu
+    - !vehiculesHeureRetour.containsKey(vehiculeId) || vehiculesHeureRetour.get(vehiculeId).isBefore(heureVolActuel)
+
+- [ ] Après assignation : Calculer et stocker heure retour
+    - LocalDateTime heureRetour = trajetCalculator.calculerHeureRetour(heureVol, reservationsGroupe);
+    - vehiculesHeureRetour.put(vehicule.getIdVehicule(), heureRetour);
+
+## 🧪 1️⃣3️⃣ TESTS À FAIRE
+- Cas réutilisation : Véhicule revenu avant prochain vol → réassigné
+- Cas non réutilisation : Véhicule pas encore revenu → autre véhicule choisi
+- Cas plusieurs hôtels : Calcul trajet avec 3+ hôtels
+
+## 🟠 1️⃣4️⃣ AFFICHAGE RÉSULTAT – DÉTAILS TRAJET
+
+### Informations à afficher par véhicule
+
+| Information | Description |
+|-------------|-------------|
+| **Heure de départ** | Heure de départ du véhicule de l'aéroport (= heure arrivée vol) |
+| **Heure de retour** | Heure de retour à l'aéroport après le trajet complet |
+| **Distance totale** | Distance totale parcourue (aller + retour) en km |
+
+### Informations à afficher par arrêt (hôtel)
+
+| Information | Description |
+|-------------|-------------|
+| **Ordre de passage** | Numéro d'ordre (1, 2, 3...) si plusieurs hôtels |
+| **Nom de l'hôtel** | Nom complet de l'hôtel (pas juste l'ID) |
+| **Heure d'arrivée** | Heure d'arrivée estimée à cet hôtel |
+| **Distance parcourue** | Distance depuis l'arrêt précédent (km) |
+| **Distance cumulée** | Distance totale depuis l'aéroport (km) |
+
+
+### 📦 Package : `com.app.planification`
+
+#### TrajetDetailDTO.java (À CRÉER)
+- [ ] Créer la classe dans `src/com/back/planification/`
+- [ ] Attribut `int ordre` — ordre de passage (1, 2, 3...)
+- [ ] Attribut `String nomHotel` — nom de l'hôtel
+- [ ] Attribut `LocalDateTime heureArrivee` — heure d'arrivée à l'hôtel
+- [ ] Attribut `int distanceSegment` — distance depuis arrêt précédent (km)
+- [ ] Attribut `int distanceCumulee` — distance totale depuis aéroport (km)
+- [ ] Getters/Setters
+
+#### VehiculePlanDTO.java (MODIFIER)
+- [ ] Ajouter attribut `LocalDateTime heureDepart`
+- [ ] Ajouter attribut `LocalDateTime heureRetour`
+- [ ] Ajouter attribut `int distanceTotale` — distance totale parcourue (km)
+- [ ] Ajouter attribut `List<TrajetDetailDTO> detailsTrajet` — liste des arrêts avec détails
+- [ ] Getters/Setters
+
+---
+
+
+### 📦 Package : `com.app.planification` (EXISTANT)
+
+#### TrajetCalculator.java (MODIFIER)
+- [ ] Modifier méthode `calculerHeureRetour()` pour retourner un objet complet avec tous les détails
+- [ ] Nouvelle méthode `TrajetComplet calculerTrajetComplet(LocalDateTime heureDepart, List<Reservation> reservations)`
+- [ ] Retourner : heureRetour, distanceTotale, List<TrajetDetailDTO>
+
+
+### 🖥️ Page planification_result.jsp (MODIFIER)
+
+#### Section par véhicule — Ajouter :
+- [ ] Afficher **Heure de départ** : `<%= vp.getHeureDepart() %>`
+- [ ] Afficher **Heure de retour** : `<%= vp.getHeureRetour() %>`
+- [ ] Afficher **Distance totale** : `<%= vp.getDistanceTotale() %> km`
+
+#### Nouveau tableau — Détails du trajet :
+- [ ] Colonne **Ordre** : numéro de passage
+- [ ] Colonne **Hôtel** : nom de l'hôtel
+- [ ] Colonne **Heure arrivée** : heure estimée
+- [ ] Colonne **Distance segment** : km depuis arrêt précédent
+- [ ] Colonne **Distance cumulée** : km depuis aéroport
+
+---

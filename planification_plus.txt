@@ -1,51 +1,212 @@
+Pour calculer **la distance totale parcourue**, on additionne simplement les distances de chaque segment du trajet.
+
+### 1️⃣ Trajet donné
+
+Tu fais le trajet :
+
+* A → B
+* B → C
+* C → A
+
+Donc **3 segments**.
+
+### 2️⃣ Distances connues
+
+On connaît :
+
+* distance **AB**
+* distance **AC**
+* distance **BC**
+
+### 3️⃣ Distance totale
+
+La distance totale du trajet est :
+
+[
+Distance\ totale = AB + BC + CA
+]
+
+⚠️ **CA = AC** (même distance).
+
+Donc :
+
+[
+Distance\ totale = AB + BC + AC
+]
+
+### 4️⃣ Exemple
+
+Si :
+
+* AB = 10 km
+* BC = 15 km
+* AC = 20 km
+
+Alors :
+
+[
+Distance\ totale = 10 + 15 + 20
+]
+
+[
+Distance\ totale = 45 \text{ km}
+]
+
+### 5️⃣ La vitesse (km/h)
+
+La **vitesse ne sert pas à calculer la distance**, mais à calculer **le temps du trajet**.
+
+Formule :
+
+[
+Temps = \frac{Distance}{Vitesse}
+]
+
 Exemple :
-On a :
--- Hôtels
-INSERT INTO Hotel (idHotel, nom, code, libelle) VALUES
-(1, 'Aéroport Ivato', 'AIV', 'aeroport'),
-(2, 'Hotel Carlton', 'HCT', 'hotel'),
-(3, 'Hotel Colbert', 'HCB', 'hotel'),
-(4, 'Hotel Ibis', 'HIB', 'hotel'),
-(5, 'Hotel Panorama', 'HPN', 'hotel');
 
--- Paramètres
-INSERT INTO Parametre (idParametre, vitesse_moyenne, temps_attente) VALUES
-(1, 40, 15);
+* Distance = 45 km
+* Vitesse = 60 km/h
 
--- Distances
-INSERT INTO Distance (from_hotel_id, to_hotel_id, distance_km) VALUES
-(1, 2, 25),
-(1, 3, 20),
-(1, 4, 18),
-(1, 5, 30),
-(2, 3, 5),
-(2, 4, 8),
-(2, 5, 10),
-(3, 4, 6),
-(3, 5, 12),
-(4, 5, 15);
+[
+Temps = \frac{45}{60} = 0.75\ h
+]
 
-Liste des distances tries par la distance le plus pres de l'aeroport jusqu'au plus loin
- iddistance | from_hotel_id | to_hotel_id | distance_km
-------------+---------------+-------------+-------------
-          3 |             1 |           4 |          18
-          2 |             1 |           3 |          20
-          1 |             1 |           2 |          25
-          4 |             1 |           5 |          30
+[
+0.75\ h = 45\ minutes
+]
 
-- Un vehicule V1 , 10 places
-- une reservation R1 arrivee le 13-03-2026 a 10h pour 5 pers vers Hotel Ibis
-- une reservation R2 arrivee le 13-03-2026 a 10h pour 3 pers vers Hotel Colbert
+✅ **Résumé**
 
-- une autre reservation R3 arrive le 13-03-2026 a 15h  pour 6 pers vers Hotel Colbert
+* Distance totale = **AB + BC + AC**
+* Temps total = **Distance totale / vitesse**
 
-Parametre :
-INSERT INTO Parametre (idParametre, vitesse_moyenne, temps_attente) VALUES
-(1, 40, 15);
+---
 
-Planification pour le 13-03-2026
-- V1 :
-    depart 10h :
-        R1 -> 5
-        R1 -> 3
+💡 Si tu veux, je peux aussi te montrer :
+
+* comment **calculer la distance AB, BC, AC à partir des coordonnées GPS (latitude/longitude)**
+* ou comment **coder ce calcul en Python / Java / JavaScript** (utile pour ton projet de planification de voitures).
+
+
+On procède en **3 étapes : distance → temps → heure d’arrivée**.
+
+---
+
+# 1️⃣ Calculer le temps pour chaque segment
+
+Formule :
+
+[
+Temps = \frac{Distance}{Vitesse}
+]
+
+avec :
+
+* distance en **km**
+* vitesse en **km/h**
+* résultat en **heures**
+
+---
+
+# 2️⃣ Exemple concret
+
+Distances :
+
+* **AB = 10 km**
+* **BC = 15 km**
+* **CA = 20 km**
+
+Vitesse moyenne :
+
+* **60 km/h**
+
+Heure de départ :
+
+* **10:00**
+
+---
+
+# 3️⃣ Calcul des temps de trajet
+
+### A → B
+
+[
+Temps_{AB} = \frac{10}{60} = 0.166h
+]
+
+0.166 h = **10 minutes**
+
+Heure arrivée B :
+
+10:00 + 10 min = **10:10**
+
+---
+
+### B → C
+
+[
+Temps_{BC} = \frac{15}{60} = 0.25h
+]
+
+0.25 h = **15 minutes**
+
+Heure arrivée C :
+
+10:10 + 15 min = **10:25**
+
+---
+
+### C → A
+
+[
+Temps_{CA} = \frac{20}{60} = 0.333h
+]
+
+0.333 h = **20 minutes**
+
+Heure arrivée finale A :
+
+10:25 + 20 min = **10:45**
+
+---
+
+# 4️⃣ Résultat final
+
+| Trajet   | Distance | Temps  | Heure arrivée |
+| -------- | -------- | ------ | ------------- |
+| Départ A | —        | —      | **10:00**     |
+| A → B    | 10 km    | 10 min | **10:10**     |
+| B → C    | 15 km    | 15 min | **10:25**     |
+| C → A    | 20 km    | 20 min | **10:45**     |
+
+---
+
+✅ **Heure de retour finale : 10:45**
+
+---
+
+# 5️⃣ Formule générale
+
+Si :
+
+* (H_d) = heure départ
+* (d) = distance
+* (v) = vitesse
+
+Alors :
+
+[
+Heure_arrivée = Heure_départ + \frac{distance}{vitesse}
+]
+
+---
+
+💡 Pour ton **projet de planification de voitures (Sprint 3)**, on fait exactement ça :
+
+1. heure arrivée avion
+2. trajet → hôtel
+3. calcul heure arrivée
+4. calcul disponibilité voiture
+
+---
 
