@@ -22,7 +22,9 @@ public class TokenService {
             return now.plusHours(duree);
         } else if ("jours".equals(unite)) {
             return now.plusDays(duree);
-        }
+        } else if( "minutes".equals(unite)) {
+            return now.plusMinutes(duree);
+        }   
         throw new IllegalArgumentException("Unité non supportée : " + unite);
     }
 
