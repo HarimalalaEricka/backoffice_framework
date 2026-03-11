@@ -10,11 +10,18 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 
 @Controller
-public class PlanificationController {    
-        private static final String DB_URL = "jdbc:postgresql://localhost:5432/gestion_ticket";    
-        private static final String DB_USER = "postgres";    
-        private static final String DB_PASSWORD = "postgres";    
-       
+public class PlanificationController {
+    private static final String DB_URL = "jdbc:postgresql://localhost:5432/gestion_ticket";
+    private static final String DB_USER = "postgres";
+    private static final String DB_PASSWORD = "postgres";
+
+    @HandleGet("/planification/form")
+    public ModelView planificationForm() {
+        ModelView mv = new ModelView();
+        mv.setView("/planifier.jsp");
+        return mv;
+    }
+
     @HandlePost("/planification")
     public ModelView executerPlanification(@RequestParam("datePlanification") String datePlanification) {
         ModelView mv = new ModelView();

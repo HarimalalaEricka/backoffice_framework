@@ -6,7 +6,7 @@
          version="6.0">
 
     <!-- Filtre de vérification Token pour les API -->
-    <filter>
+    <!-- <filter>
         <filter-name>TokenFilter</filter-name>
         <filter-class>com.app.filter.TokenFilter</filter-class>
     </filter>
@@ -14,7 +14,7 @@
     <filter-mapping>
         <filter-name>TokenFilter</filter-name>
         <url-pattern>/api/*</url-pattern>
-    </filter-mapping>
+    </filter-mapping> -->
 
     <!-- Déclaration du Front Controller -->
     <servlet>

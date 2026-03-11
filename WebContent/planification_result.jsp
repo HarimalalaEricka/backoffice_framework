@@ -1,8 +1,12 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ page import="java.util.List" %>
 <%@ page import="com.app.planification.VehiculePlanDTO" %>
+<%@ page import="com.app.planification.VoyageDTO" %>
+<%@ page import="com.app.planification.TrajetDetailDTO" %>
 <%@ page import="com.app.models.Reservation" %>
 <%@ page import="com.app.models.Vehicule" %>
+<%@ page import="java.time.LocalDateTime" %>
+<%@ page import="java.time.format.DateTimeFormatter" %>
 <!DOCTYPE html>
 <html>
 <head>
@@ -209,6 +213,88 @@
                     </tbody>
                 </table>
                 <p><strong>Total personnes dans ce véhicule :</strong> <%= vp.getTotalPersonnes() %></p>
+                
+                <!-- Sprint 3 : Affichage des voyages multiples -->
+                <% 
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+                if (vp.getVoyages() != null && !vp.getVoyages().isEmpty()) { 
+                %>
+                    <div style="background-color: #e8f5e9; padding: 15px; border-radius: 5px; margin-top: 15px;">
+                        <h3 style="margin-top: 0; color: #2e7d32;">
+                            🚐 <%= vp.getNombreVoyages() %> Voyage<%= vp.getNombreVoyages() > 1 ? "s" : "" %> effectué<%= vp.getNombreVoyages() > 1 ? "s" : "" %>
+                            <span style="font-size: 14px; font-weight: normal; color: #666;">
+                                (Distance totale cumulée: <%= vp.getDistanceTotaleTousVoyages() %> km)
+                            </span>
+                        </h3>
+                        
+                        <% 
+                        int voyageNum = 0;
+                        for (VoyageDTO voyage : vp.getVoyages()) { 
+                            voyageNum++;
+                            String bgColor = voyageNum % 2 == 1 ? "#e3f2fd" : "#fff3e0";
+                            String titleColor = voyageNum % 2 == 1 ? "#1976d2" : "#f57c00";
+                        %>
+                        <div style="background-color: <%= bgColor %>; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid <%= titleColor %>;">
+                            <h4 style="margin-top: 0; color: <%= titleColor %>;">
+                                ✈️ Voyage <%= voyage.getNumeroVoyage() %> 
+                                <span style="font-size: 13px; font-weight: normal; color: #666;">
+                                    (<%= voyage.getTotalPersonnes() %> personne<%= voyage.getTotalPersonnes() > 1 ? "s" : "" %>, 
+                                    <%= voyage.getDureeVoyage() %> minutes)
+                                </span>
+                            </h4>
+                            
+                            <div style="display: flex; gap: 30px; margin-bottom: 15px; flex-wrap: wrap;">
+                                <div>
+                                    <strong>🛫 Départ :</strong> <%= voyage.getHeureDepart().format(formatter) %>
+                                </div>
+                                <div>
+                                    <strong>🛬 Retour :</strong> <%= voyage.getHeureRetour().format(formatter) %>
+                                </div>
+                                <div>
+                                    <strong>📏 Distance :</strong> <%= voyage.getDistanceTotale() %> km
+                                </div>
+                            </div>
+                            
+                            <!-- Réservations de ce voyage -->
+                            <div style="margin-bottom: 10px;">
+                                <strong>👥 Réservations :</strong>
+                                <% for (Reservation r : voyage.getReservations()) { %>
+                                    <span style="background-color: white; padding: 3px 8px; border-radius: 3px; margin-right: 5px; display: inline-block; margin-bottom: 3px;">
+                                        <%= r.getClientId() %> (<%= r.getNbrPers() %> pers.)
+                                    </span>
+                                <% } %>
+                            </div>
+                            
+                            <!-- Itinéraire détaillé du voyage -->
+                            <% if (voyage.getDetailsTrajet() != null && !voyage.getDetailsTrajet().isEmpty()) { %>
+                            <h5 style="margin-bottom: 10px; color: #424242;">🗺️ Itinéraire</h5>
+                            <table style="background-color: white; font-size: 13px;">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 50px;">Ordre</th>
+                                        <th>Hôtel</th>
+                                        <th>Heure d'arrivée</th>
+                                        <th style="width: 100px;">Segment (km)</th>
+                                        <th style="width: 100px;">Cumulée (km)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% for (TrajetDetailDTO detail : voyage.getDetailsTrajet()) { %>
+                                    <tr>
+                                        <td style="text-align: center;"><%= detail.getOrdre() %></td>
+                                        <td><strong><%= detail.getNomHotel() %></strong></td>
+                                        <td><%= detail.getHeureArrivee().format(formatter) %></td>
+                                        <td style="text-align: right;"><%= detail.getDistanceSegment() %> km</td>
+                                        <td style="text-align: right;"><strong><%= detail.getDistanceCumulee() %> km</strong></td>
+                                    </tr>
+                                    <% } %>
+                                </tbody>
+                            </table>
+                            <% } %>
+                        </div>
+                        <% } %>
+                    </div>
+                <% } %>
             </div>
         <% 
             }

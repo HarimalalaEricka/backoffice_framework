@@ -123,4 +123,26 @@ public class AssignationRepository {
         }
         return vehiculeIds;
     }
+
+    /**
+     * Supprime toutes les assignations pour une date donnée
+     * Sprint 4 - Permet de réinitialiser les assignations avant recalcul
+     */
+    public void deleteByDate(LocalDate date) {
+        Connection conn = connexion.getConnection();
+        
+        if (conn == null) {
+            System.err.println("Connexion non établie");
+            return;
+        }
+
+        String sql = "DELETE FROM Assignation WHERE DATE(date_heure_planification) = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDate(1, Date.valueOf(date));
+            int deletedRows = ps.executeUpdate();
+            System.out.println("Assignations supprimées pour la date " + date + " : " + deletedRows + " ligne(s)");
+        } catch (SQLException e) {
+            System.err.println("Erreur lors de la suppression des assignations : " + e.getMessage());
+        }
+    }
 }
