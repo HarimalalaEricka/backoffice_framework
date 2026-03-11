@@ -50,8 +50,22 @@ public class VehiculePlanDTO {
         this.vehicule = vehicule;
     }
 
+    /**
+     * CORRIGÉ : Retourne toutes les réservations (agrégées des voyages si présents)
+     */
     public List<Reservation> getReservations() {
-        return reservations;
+        // Si on a des voyages, agréger les réservations de tous les voyages
+        if (voyages != null && !voyages.isEmpty()) {
+            List<Reservation> toutesReservations = new ArrayList<>();
+            for (VoyageDTO voyage : voyages) {
+                if (voyage.getReservations() != null) {
+                    toutesReservations.addAll(voyage.getReservations());
+                }
+            }
+            return toutesReservations;
+        }
+        // Fallback sur la liste directe (compatibilité)
+        return reservations != null ? reservations : new ArrayList<>();
     }
 
     public void setReservations(List<Reservation> reservations) {
@@ -114,8 +128,19 @@ public class VehiculePlanDTO {
         this.reservations.add(reservation);
     }
 
-    // Calcul du nombre total de personnes assignées à ce véhicule
+    /**
+     * CORRIGÉ : Calcul du nombre total de personnes assignées à ce véhicule
+     * Agrège les réservations de tous les voyages
+     */
     public int getTotalPersonnes() {
+        // Si on a des voyages, calculer depuis les voyages
+        if (voyages != null && !voyages.isEmpty()) {
+            return voyages.stream()
+                    .flatMap(v -> v.getReservations().stream())
+                    .mapToInt(Reservation::getNbrPers)
+                    .sum();
+        }
+        // Fallback sur la liste directe (compatibilité)
         if (reservations == null) return 0;
         return reservations.stream()
                 .mapToInt(Reservation::getNbrPers)
