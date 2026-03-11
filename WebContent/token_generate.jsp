@@ -27,7 +27,7 @@ Integer duree = (Integer) request.getAttribute("duree");
     <h1>Generation de Token</h1>
 
     <% if (success != null && success) { %>
-        <div class="msg msg-ok">Token genere avec succès</div>
+        <div class="msg msg-ok">Token genere avec succès - Stocké en session ✓</div>
         <table>
             <tr>
                 <th>Token</th>
@@ -54,6 +54,7 @@ Integer duree = (Integer) request.getAttribute("duree");
         <input type="number" name="duree" required>
         <label for="unite"></label>
         <select name="unite">
+            <option value="minutes">Minutes</option>
             <option value="heures">Heures</option>
             <option value="jours">Jours</option>
         </select>

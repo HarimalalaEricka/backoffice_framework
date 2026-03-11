@@ -42,4 +42,38 @@ public class HotelRepository {
         }
         return hotels;
     }
+
+    /**
+     * Récupère l'aéroport (hôtel avec libelle = 'aeroport').
+     * 
+     * @return Hotel représentant l'aéroport, ou null si non trouvé
+     */
+    public Hotel findAeroport() {
+        Connection conn = connexion.getConnection();
+        
+        if (conn == null) {
+            System.err.println("Connexion non établie");
+            return null;
+        }
+
+        String sql = "SELECT idHotel, nom, code, libelle FROM Hotel WHERE LOWER(libelle) = 'aeroport' LIMIT 1";
+        
+        try (PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            
+            if (rs.next()) {
+                return new Hotel(
+                    rs.getInt("idHotel"),
+                    rs.getString("nom"),
+                    rs.getString("code"),
+                    rs.getString("libelle")
+                );
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur lors de la récupération de l'aéroport : " + e.getMessage());
+        }
+        
+        System.err.println("Aucun aéroport trouvé (libelle='aeroport')");
+        return null;
+    }
 }

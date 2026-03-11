@@ -224,37 +224,37 @@ Permettre à un véhicule d'effectuer **plusieurs trajets par jour** en calculan
 ### 📦 Package : `com.app.repository`
 
 #### DistanceRepository.java (À CRÉER)
-- [ ] Créer la classe `DistanceRepository` dans [src/com/back/repository/](src/com/back/repository/)
-- [ ] Méthode `int getDistance(int fromHotelId, int toHotelId)` — retourne distance en km
-- [ ] Méthode `List<Distance> findAll()`
+- [x] Créer la classe `DistanceRepository` dans [src/com/back/repository/](src/com/back/repository/)
+- [x] Méthode `int getDistance(int fromHotelId, int toHotelId)` — retourne distance en km
+- [x] Méthode `List<Distance> findAll()`
 
 #### ParametreRepository.java (À CRÉER)
-- [ ] Créer la classe `ParametreRepository` dans [src/com/back/repository/](src/com/back/repository/)
-- [ ] Méthode `Parametre getParametre()` — retourne vitesse_moyenne et temps_attente
+- [x] Créer la classe `ParametreRepository` dans [src/com/back/repository/](src/com/back/repository/)
+- [x] Méthode `Parametre getParametre()` — retourne vitesse_moyenne et temps_attente
 
 #### HotelRepository.java (EXISTANT)
-- [ ] Vérifier méthode `Hotel findAeroport()` — retourne l'hôtel avec `libelle = 'aeroport'`
-- [ ] Si absente, l'ajouter
+- [x] Vérifier méthode `Hotel findAeroport()` — retourne l'hôtel avec `libelle = 'aeroport'`
+- [x] Si absente, l'ajouter
 
 ---
 
 ### 📦 Package : `com.app.planification`
 
 #### TrajetCalculator.java (À CRÉER)
-- [ ] Créer la classe dans `src/com/back/planification/`
-- [ ] Attribut `DistanceRepository distanceRepository`
-- [ ] Attribut `ParametreRepository parametreRepository`
-- [ ] Attribut `HotelRepository hotelRepository`
-- [ ] Méthode `LocalDateTime calculerHeureRetour(LocalDateTime heureDepart, List<Reservation> reservations)`
+- [x] Créer la classe dans `src/com/back/planification/`
+- [x] Attribut `DistanceRepository distanceRepository`
+- [x] Attribut `ParametreRepository parametreRepository`
+- [x] Attribut `HotelRepository hotelRepository`
+- [x] Méthode `LocalDateTime calculerHeureRetour(LocalDateTime heureDepart, List<Reservation> reservations)`
 
 ---
 
 ### 📦 Package : `com.app.planification` (EXISTANT)
 
 #### PlanificationService.java (MODIFIER)
-- [ ] Remplacer `Set<Integer> vehiculesUtilises` par `Map<Integer, LocalDateTime> vehiculesHeureRetour`
-- [ ] Modifier `trouverVehiculeOptimal()` pour vérifier `heureRetour <= heureVolActuel`
-- [ ] Après assignation, calculer et stocker `heureRetour` du véhicule
+- [x] Remplacer `Set<Integer> vehiculesUtilises` par `Map<Integer, LocalDateTime> vehiculesHeureRetour`
+- [x] Modifier `trouverVehiculeOptimal()` pour vérifier `heureRetour <= heureVolActuel`
+- [x] Après assignation, calculer et stocker `heureRetour` du véhicule
 
 ---
 
@@ -264,12 +264,12 @@ Permettre à un véhicule d'effectuer **plusieurs trajets par jour** en calculan
 
 ### Algorithme : calculerHeureRetour(heureDepart, reservations)
 
-- [ ] **Étape 1** : Récupérer l'ID de l'aéroport via `HotelRepository.findAeroport()`
-- [ ] **Étape 2** : Récupérer les paramètres (vitesse_moyenne, temps_attente)
-- [ ] **Étape 3** : Construire le trajet :
+- [x] **Étape 1** : Récupérer l'ID de l'aéroport via `HotelRepository.findAeroport()`
+- [x] **Étape 2** : Récupérer les paramètres (vitesse_moyenne, temps_attente)
+- [x] **Étape 3** : Construire le trajet :
 
-- [ ] **Étape 4** : Trier les hôtels par distance croissante depuis l'aéroport (optimisation)
-- [ ] **Étape 5** : Pour chaque segment, calculer :
+- [x] **Étape 4** : Trier les hôtels par distance croissante depuis l'aéroport (optimisation)
+- [x] **Étape 5** : Pour chaque segment, calculer :
     - int distanceKm = distanceRepository.getDistance(fromId, toId);
     - double tempsHeures = distanceKm / vitesseMoyenne;
     - int tempsMinutes = (int) (tempsHeures * 60) + tempsAttente;
@@ -277,11 +277,11 @@ Permettre à un véhicule d'effectuer **plusieurs trajets par jour** en calculan
 
 ## 🟢 1️⃣2️⃣ LOGIQUE MÉTIER – RÉUTILISATION VÉHICULE
 ## Dans PlanificationService.planifierJour(LocalDate date)
-- [ ] Modifier Étape 6 : Un véhicule est disponible si :
+- [x] Modifier Étape 6 : Un véhicule est disponible si :
     Véhicule jamais utilisé OU déjà revenu
     - !vehiculesHeureRetour.containsKey(vehiculeId) || vehiculesHeureRetour.get(vehiculeId).isBefore(heureVolActuel)
 
-- [ ] Après assignation : Calculer et stocker heure retour
+- [x] Après assignation : Calculer et stocker heure retour
     - LocalDateTime heureRetour = trajetCalculator.calculerHeureRetour(heureVol, reservationsGroupe);
     - vehiculesHeureRetour.put(vehicule.getIdVehicule(), heureRetour);
 
@@ -314,20 +314,20 @@ Permettre à un véhicule d'effectuer **plusieurs trajets par jour** en calculan
 ### 📦 Package : `com.app.planification`
 
 #### TrajetDetailDTO.java (À CRÉER)
-- [ ] Créer la classe dans `src/com/back/planification/`
-- [ ] Attribut `int ordre` — ordre de passage (1, 2, 3...)
-- [ ] Attribut `String nomHotel` — nom de l'hôtel
-- [ ] Attribut `LocalDateTime heureArrivee` — heure d'arrivée à l'hôtel
-- [ ] Attribut `int distanceSegment` — distance depuis arrêt précédent (km)
-- [ ] Attribut `int distanceCumulee` — distance totale depuis aéroport (km)
-- [ ] Getters/Setters
+- [x] Créer la classe dans `src/com/back/planification/`
+- [x] Attribut `int ordre` — ordre de passage (1, 2, 3...)
+- [x] Attribut `String nomHotel` — nom de l'hôtel
+- [x] Attribut `LocalDateTime heureArrivee` — heure d'arrivée à l'hôtel
+- [x] Attribut `int distanceSegment` — distance depuis arrêt précédent (km)
+- [x] Attribut `int distanceCumulee` — distance totale depuis aéroport (km)
+- [x] Getters/Setters
 
 #### VehiculePlanDTO.java (MODIFIER)
-- [ ] Ajouter attribut `LocalDateTime heureDepart`
-- [ ] Ajouter attribut `LocalDateTime heureRetour`
-- [ ] Ajouter attribut `int distanceTotale` — distance totale parcourue (km)
-- [ ] Ajouter attribut `List<TrajetDetailDTO> detailsTrajet` — liste des arrêts avec détails
-- [ ] Getters/Setters
+- [x] Ajouter attribut `LocalDateTime heureDepart`
+- [x] Ajouter attribut `LocalDateTime heureRetour`
+- [x] Ajouter attribut `int distanceTotale` — distance totale parcourue (km)
+- [x] Ajouter attribut `List<TrajetDetailDTO> detailsTrajet` — liste des arrêts avec détails
+- [x] Getters/Setters
 
 ---
 
@@ -335,23 +335,23 @@ Permettre à un véhicule d'effectuer **plusieurs trajets par jour** en calculan
 ### 📦 Package : `com.app.planification` (EXISTANT)
 
 #### TrajetCalculator.java (MODIFIER)
-- [ ] Modifier méthode `calculerHeureRetour()` pour retourner un objet complet avec tous les détails
-- [ ] Nouvelle méthode `TrajetComplet calculerTrajetComplet(LocalDateTime heureDepart, List<Reservation> reservations)`
-- [ ] Retourner : heureRetour, distanceTotale, List<TrajetDetailDTO>
+- [x] Modifier méthode `calculerHeureRetour()` pour retourner un objet complet avec tous les détails
+- [x] Nouvelle méthode `TrajetComplet calculerTrajetComplet(LocalDateTime heureDepart, List<Reservation> reservations)`
+- [x] Retourner : heureRetour, distanceTotale, List<TrajetDetailDTO>
 
 
 ### 🖥️ Page planification_result.jsp (MODIFIER)
 
 #### Section par véhicule — Ajouter :
-- [ ] Afficher **Heure de départ** : `<%= vp.getHeureDepart() %>`
-- [ ] Afficher **Heure de retour** : `<%= vp.getHeureRetour() %>`
-- [ ] Afficher **Distance totale** : `<%= vp.getDistanceTotale() %> km`
+- [x] Afficher **Heure de départ** : `<%= vp.getHeureDepart() %>`
+- [x] Afficher **Heure de retour** : `<%= vp.getHeureRetour() %>`
+- [x] Afficher **Distance totale** : `<%= vp.getDistanceTotale() %> km`
 
 #### Nouveau tableau — Détails du trajet :
-- [ ] Colonne **Ordre** : numéro de passage
-- [ ] Colonne **Hôtel** : nom de l'hôtel
-- [ ] Colonne **Heure arrivée** : heure estimée
-- [ ] Colonne **Distance segment** : km depuis arrêt précédent
-- [ ] Colonne **Distance cumulée** : km depuis aéroport
+- [x] Colonne **Ordre** : numéro de passage
+- [x] Colonne **Hôtel** : nom de l'hôtel
+- [x] Colonne **Heure arrivée** : heure estimée
+- [x] Colonne **Distance segment** : km depuis arrêt précédent
+- [x] Colonne **Distance cumulée** : km depuis aéroport
 
 ---

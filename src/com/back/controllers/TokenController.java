@@ -2,6 +2,7 @@ package com.app.controllers;
 
 import com.framework.annotation.*;
 import com.framework.model.ModelView;
+import com.framework.model.SessionModelView;
 import com.app.models.Token;
 import com.app.repository.TokenRepository;
 import com.app.service.TokenService;
@@ -29,8 +30,8 @@ public class TokenController {
      * Route: POST /token/generate
      */
     @HandlePost("/token/generate")
-    public ModelView handleGenerate(@RequestParam("duree") int duree, @RequestParam("unite") String unite) {
-        ModelView mv = new ModelView();
+    public SessionModelView handleGenerate(@RequestParam("duree") int duree, @RequestParam("unite") String unite) {
+        SessionModelView mv = new SessionModelView("/token_generate.jsp");
         String url = "jdbc:postgresql://localhost:5432/gestion_ticket";
         String username = "postgres";
         String password = "postgres";
@@ -56,6 +57,9 @@ public class TokenController {
 
             // Insertion en base
             tokenRepo.insertToken(token);
+
+            // Stocker le token en session (session personnalisée)
+            mv.addSessionAttribute("token", tokenValue);
 
             // Retourner le token généré
             mv.addAttribute("success", true);

@@ -117,7 +117,7 @@
             </ul>
         </div>
          --%>
-        <form action="planification" method="POST">
+        <form action="<%= request.getContextPath() %>/planification" method="POST">
             <div class="form-group">
                 <label for="datePlanification">Date de planification</label>
                 <input type="date" 

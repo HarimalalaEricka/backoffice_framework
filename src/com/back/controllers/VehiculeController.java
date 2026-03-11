@@ -138,4 +138,32 @@ public class VehiculeController {
         mv.setView("/vehicules/vehicules.jsp");
         return mv;
     }
+
+    /**
+     * Route API protégée - Liste des véhicules (JSON)
+     * Utilise le token stocké en session
+     * Route: GET /api/vehicules/list
+     */
+    @HandleGet("/api/vehicules/list")
+    public ModelView listeVehicules(@SessionParam(value = "token", required = false) String token) {
+        ModelView mv = new ModelView();
+
+        // Vérifier le token avec le repository
+        TokenRepository tokenRepo = new TokenRepository(URL, USERNAME, PASSWORD);
+        String tokenError = tokenRepo.getTokenErrorMessage(token);
+        
+        if (tokenError != null) {
+            mv.addAttribute("status", "error");
+            mv.addAttribute("message", tokenError);
+            mv.addAttribute("vehicules", new java.util.ArrayList<>());
+        } else {
+            VehiculeRepository vehiculeRepo = new VehiculeRepository(URL, USERNAME, PASSWORD);
+            List<Vehicule> vehicules = vehiculeRepo.findAll();
+            mv.addAttribute("status", "success");
+            mv.addAttribute("vehicules", vehicules);
+        }
+
+        mv.setView("/vehicules_list.jsp");
+        return mv;
+    }
 }
