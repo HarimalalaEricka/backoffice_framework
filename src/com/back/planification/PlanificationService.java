@@ -177,7 +177,11 @@ public class PlanificationService {
                            .collect(Collectors.joining(", ")));
 
             
-            // RG8: Remplissage progressif des véhicules
+            // RG8 MODIFIÉ: Assigne les réservations d'un même vol.
+            // STRATÉGIE :
+            // 1. Essayer d'assigner TOUTES les réservations du vol dans UN SEUL véhicule
+            // 2. Si impossible, essayer des sous-groupes (toutes les combinaisons possibles)
+            // 3. Si toujours impossible, traiter réservation par réservation (tri par nbr décroissant)
             assignerAvecRemplissageProgressif(reservationsTriees, heureVol, date, tousVehicules, 
                                              vehiculesHeureRetour, vehiculePlans, result);
         }
@@ -305,8 +309,12 @@ public class PlanificationService {
     }
 
     /**
-     * RG8: Assigne les réservations avec remplissage progressif des véhicules.
-     * Un véhicule peut transporter plusieurs réservations tant que la capacité le permet.
+     * RG8 MODIFIÉ: Assigne les réservations d'un même vol.
+     * 
+     * STRATÉGIE :
+     * 1. Essayer d'assigner TOUTES les réservations du vol dans UN SEUL véhicule
+     * 2. Si impossible, essayer des sous-groupes (toutes les combinaisons possibles)
+     * 3. Si toujours impossible, traiter réservation par réservation (tri par nbr décroissant)
      * 
      * @param reservations Réservations triées par nombre de passagers décroissant
      * @param heureVol Heure du vol
@@ -327,32 +335,115 @@ public class PlanificationService {
         
         List<Reservation> reservationsNonAssignees = new ArrayList<>(reservations);
         
-        while (!reservationsNonAssignees.isEmpty()) {
-            // Prendre la première réservation (la plus grande)
-            Reservation premiereReservation = reservationsNonAssignees.get(0);
-            int nbrPersonnes = premiereReservation.getNbrPers();
+        // ÉTAPE 1 : Essayer d'assigner TOUTES les réservations ensemble
+        if (!reservationsNonAssignees.isEmpty()) {
+            int totalPersonnes = reservationsNonAssignees.stream()
+                    .mapToInt(Reservation::getNbrPers)
+                    .sum();
             
-            // Trouver un véhicule pour cette réservation
-            Vehicule vehicule = trouverVehiculeOptimal(nbrPersonnes, tousVehicules, vehiculesHeureRetour, heureVol);
+            logger.info("ÉTAPE 1: Tentative d'assignation groupée de " + reservationsNonAssignees.size() + 
+                       " réservations (" + totalPersonnes + " personnes)");
+            
+            Vehicule vehicule = trouverVehiculeOptimal(totalPersonnes, tousVehicules, 
+                                                   vehiculesHeureRetour, heureVol);
+            
+            if (vehicule != null) {
+                logger.info("✅ Véhicule trouvé pour tout le groupe : " + vehicule.getReference() + 
+                           " (capacité: " + vehicule.getNbrPlaces() + ")");
+                
+                // Assigner toutes les réservations à ce véhicule
+                for (Reservation reservation : reservationsNonAssignees) {
+                    enregistrerAssignation(reservation, vehicule, date);
+                }
+                
+                // Calculer le trajet complet
+                TrajetComplet trajetComplet = trajetCalculator.calculerTrajetComplet(heureVol, reservationsNonAssignees);
+                
+                // Stocker l'heure de retour du véhicule
+                vehiculesHeureRetour.put(vehicule.getIdVehicule(), trajetComplet.getHeureRetour());
+                
+                // Ajouter au résultat
+                ajouterVoyageAuPlan(vehicule, heureVol, trajetComplet, 
+                               new ArrayList<>(reservationsNonAssignees), 
+                               vehiculePlans);
+                
+                // Toutes les réservations sont assignées
+                reservationsNonAssignees.clear();
+                return;
+            } else {
+                logger.info("❌ Aucun véhicule trouvé pour tout le groupe");
+            }
+        }
+        
+        // ÉTAPE 2 : Si impossible, essayer par sous-groupes
+        // (Pour optimiser, on peut essayer des combinaisons intelligentes)
+        // Par exemple : les N premières réservations, puis N-1, etc.
+        logger.info("ÉTAPE 2: Tentative d'assignation par sous-groupes");
+        
+        for (int tailleGroupe = reservationsNonAssignees.size() - 1; tailleGroupe >= 2; tailleGroupe--) {
+            List<Reservation> sousGroupe = reservationsNonAssignees.subList(0, tailleGroupe);
+            int totalPersonnesSousGroupe = sousGroupe.stream()
+                    .mapToInt(Reservation::getNbrPers)
+                    .sum();
+            
+            Vehicule vehicule = trouverVehiculeOptimal(totalPersonnesSousGroupe, tousVehicules, 
+                                                   vehiculesHeureRetour, heureVol);
+            
+            if (vehicule != null) {
+                logger.info("✅ Véhicule trouvé pour sous-groupe de " + tailleGroupe + " réservations : " + 
+                           vehicule.getReference());
+                
+                // Assigner ce sous-groupe
+                for (Reservation reservation : sousGroupe) {
+                    enregistrerAssignation(reservation, vehicule, date);
+                }
+                
+                TrajetComplet trajetComplet = trajetCalculator.calculerTrajetComplet(heureVol, sousGroupe);
+                vehiculesHeureRetour.put(vehicule.getIdVehicule(), trajetComplet.getHeureRetour());
+                ajouterVoyageAuPlan(vehicule, heureVol, trajetComplet, 
+                               new ArrayList<>(sousGroupe), vehiculePlans);
+                
+                // Retirer les réservations assignées et continuer avec le reste
+                for (int i = 0; i < tailleGroupe; i++) {
+                    reservationsNonAssignees.remove(0);
+                }
+                
+                // Récursion pour le reste
+                if (!reservationsNonAssignees.isEmpty()) {
+                    assignerAvecRemplissageProgressif(reservationsNonAssignees, heureVol, date,
+                                                 tousVehicules, vehiculesHeureRetour, 
+                                                 vehiculePlans, result);
+                }
+                return;
+            }
+        }
+        
+        // ÉTAPE 3 : Traiter réservation par réservation (logique originale)
+        logger.info("ÉTAPE 3: Assignation réservation par réservation");
+        
+        while (!reservationsNonAssignees.isEmpty()) {
+            Reservation reservation = reservationsNonAssignees.get(0);
+            int nbrPersonnes = reservation.getNbrPers();
+            
+            Vehicule vehicule = trouverVehiculeOptimal(nbrPersonnes, tousVehicules, 
+                                                   vehiculesHeureRetour, heureVol);
             
             if (vehicule == null) {
-                // Aucun véhicule disponible pour cette réservation
-                logger.warning("Aucun véhicule disponible pour la réservation " + 
-                              premiereReservation.getIdReservation() + " (" + nbrPersonnes + " personnes)");
-                result.addReservationNonAssignee(premiereReservation);
+                logger.warning("❌ Aucun véhicule disponible pour la réservation " + 
+                          reservation.getIdReservation() + " (" + nbrPersonnes + " personnes)");
+                result.addReservationNonAssignee(reservation);
                 reservationsNonAssignees.remove(0);
                 continue;
             }
             
-            // RG8: Remplir le véhicule avec d'autres réservations du même vol
+            // Remplir le véhicule avec d'autres réservations si possible
             List<Reservation> reservationsDuVehicule = new ArrayList<>();
-            reservationsDuVehicule.add(premiereReservation);
+            reservationsDuVehicule.add(reservation);
             int capaciteRestante = vehicule.getNbrPlaces() - nbrPersonnes;
             
             logger.info("Véhicule " + vehicule.getReference() + " sélectionné (capacité: " + 
                        vehicule.getNbrPlaces() + "), capacité restante: " + capaciteRestante);
             
-            // Essayer d'ajouter d'autres réservations tant que la capacité le permet
             Iterator<Reservation> iterator = reservationsNonAssignees.listIterator(1);
             while (iterator.hasNext() && capaciteRestante > 0) {
                 Reservation autreReservation = iterator.next();
@@ -361,50 +452,53 @@ public class PlanificationService {
                     capaciteRestante -= autreReservation.getNbrPers();
                     iterator.remove();
                     logger.info("  + Ajout réservation " + autreReservation.getIdReservation() + 
-                               " (" + autreReservation.getNbrPers() + " pers), capacité restante: " + capaciteRestante);
+                               " (" + autreReservation.getNbrPers() + " pers)");
                 }
             }
             
-            // Retirer la première réservation de la liste
-            reservationsNonAssignees.remove(premiereReservation);
+            reservationsNonAssignees.remove(reservation);
             
             // Enregistrer les assignations
-            for (Reservation reservation : reservationsDuVehicule) {
-                enregistrerAssignation(reservation, vehicule, date);
+            for (Reservation r : reservationsDuVehicule) {
+                enregistrerAssignation(r, vehicule, date);
             }
             
-            // Calculer le trajet complet
-            TrajetComplet trajetComplet = trajetCalculator.calculerTrajetComplet(heureVol, reservationsDuVehicule);
-            
-            // Stocker l'heure de retour du véhicule
+            TrajetComplet trajetComplet = trajetCalculator.calculerTrajetComplet(heureVol, 
+                                                                            reservationsDuVehicule);
             vehiculesHeureRetour.put(vehicule.getIdVehicule(), trajetComplet.getHeureRetour());
-            
-            // Ajouter au résultat
-            int vehiculeId = vehicule.getIdVehicule();
-            VehiculePlanDTO vehiculePlan;
-            if (!vehiculePlans.containsKey(vehiculeId)) {
-                vehiculePlan = new VehiculePlanDTO(vehicule, new ArrayList<>());
-                vehiculePlans.put(vehiculeId, vehiculePlan);
-            } else {
-                vehiculePlan = vehiculePlans.get(vehiculeId);
-            }
-            
-            // Créer un nouveau voyage
-            int numeroVoyage = vehiculePlan.getNombreVoyages() + 1;
-            VoyageDTO voyage = new VoyageDTO(
-                numeroVoyage,
-                heureVol,
-                trajetComplet.getHeureRetour(),
-                trajetComplet.getDistanceTotale(),
-                new ArrayList<>(reservationsDuVehicule),
-                trajetComplet.getDetailsTrajet()
-            );
-            
-            vehiculePlan.addVoyage(voyage);
-            vehiculePlan.getReservations().addAll(reservationsDuVehicule);
-            
-            logger.info("Voyage " + numeroVoyage + " créé avec " + reservationsDuVehicule.size() + 
-                       " réservations (" + (vehicule.getNbrPlaces() - capaciteRestante) + " personnes)");
+            ajouterVoyageAuPlan(vehicule, heureVol, trajetComplet, reservationsDuVehicule, 
+                           vehiculePlans);
         }
+    }
+
+    /**
+     * Méthode utilitaire pour ajouter un voyage à un plan de véhicule
+     */
+    private void ajouterVoyageAuPlan(Vehicule vehicule, 
+                                 LocalDateTime heureVol,
+                                 TrajetComplet trajetComplet,
+                                 List<Reservation> reservations,
+                                 Map<Integer, VehiculePlanDTO> vehiculePlans) {
+        int vehiculeId = vehicule.getIdVehicule();
+        VehiculePlanDTO vehiculePlan;
+        
+        if (!vehiculePlans.containsKey(vehiculeId)) {
+            vehiculePlan = new VehiculePlanDTO(vehicule, new ArrayList<>());
+            vehiculePlans.put(vehiculeId, vehiculePlan);
+        } else {
+            vehiculePlan = vehiculePlans.get(vehiculeId);
+        }
+        
+        int numeroVoyage = vehiculePlan.getNombreVoyages() + 1;
+        VoyageDTO voyage = new VoyageDTO(
+            numeroVoyage,
+            heureVol,
+            trajetComplet.getHeureRetour(),
+            trajetComplet.getDistanceTotale(),
+            new ArrayList<>(reservations),
+            trajetComplet.getDetailsTrajet()
+        );
+        
+        vehiculePlan.addVoyage(voyage);
     }
 }
