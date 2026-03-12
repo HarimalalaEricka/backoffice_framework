@@ -1,0 +1,51 @@
+Team Lead :
+    ETU003350 / Harimalala Ericka
+
+Developpeurs :
+    ETU003324 / Harenkantou
+    ETU003366 / Vatosoa Wanda
+
+
+BACKOFFICE
+Module : Reservation
+
+    TACHE 1 : Assignation automatique des reservations non assignees
+        Responsable :
+            ETU003324
+        Metier :
+            - Identifier toutes les reservations non assignees de la journee
+            - Selectionner celles dont l'heure d'arrivee est avant le debut
+                du nouvel intervalle de depart
+            - Les assigner automatiquement au groupe de l'intervalle actuel
+                    Exemple :
+                        Nouvel intervalle cree : [08:00 - 08:30]
+                        Reservations non assignees :
+                            06:00
+                            06:45
+                            07:30
+                        Resultat :
+                            Ces reservations doivent etre ajoutees au groupe [08:00 - 08:30]
+
+        Regle de gestion :
+            - Toute reservation non assignee de la journee doit etre incluse
+            dans le prochain groupe d'intervalle cree.
+
+
+    TACHE 2 : Gestion de l'heure de depart
+        Responsable :
+            ETU003366
+
+        Metier :
+        - Calculer l'heure de depart du vehicule selon l'intervalle de depart
+        - Verifier si une reservation peut etre incluse dans cet intervalle
+                    Exemple d'intervalle :  [08:00 - 08:30]
+
+        Regles de gestion :
+            - Heure maximale de depart = fin de l'intervalle
+                Exemple : 08:30
+            - Heure possible de depart avant fin de l'intervalle:
+                heure_arrivee_vol <= fin_intervalle
+                    Exemples :
+                        Arrivee vol : 08:10 -> accepte
+                        Arrivee vol : 08:20 -> accepte
+                        Heure depart : 08:20

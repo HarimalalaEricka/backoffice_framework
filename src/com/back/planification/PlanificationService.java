@@ -82,7 +82,7 @@ public class PlanificationService {
         logger.info("Début de la planification pour la date : " + date);
         
         // Sprint 4 - Réinitialisation automatique avant recalcul
-        // reinitialiserAssignations(date);
+        reinitialiserAssignations(date);
         
         PlanificationResult result = new PlanificationResult();
         
@@ -236,7 +236,8 @@ public class PlanificationService {
                     
                     // Véhicule déjà utilisé → vérifier s'il est déjà revenu
                     LocalDateTime heureRetour = vehiculesHeureRetour.get(vehiculeId);
-                    boolean estRevenu = heureRetour.isBefore(heureVolActuel) || heureRetour.isEqual(heureVolActuel);
+                    // boolean estRevenu = heureRetour.isBefore(heureVolActuel) || heureRetour.isEqual(heureVolActuel);
+                    boolean estRevenu = false; // mbola atao hoe mbola tsy miverina loa izy fa mbola sprint 6 zany 
                     
                     if (estRevenu) {
                         logger.info("Véhicule " + v.getReference() + " réutilisable (retour: " + 
