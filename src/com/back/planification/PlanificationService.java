@@ -208,7 +208,7 @@ public class PlanificationService {
 
     /**
      * SPRINT 3 - Groupe les réservations par vol exact (même date_heure_arrivee).
-     * @deprecated Remplacé par grouperParTrancheAttente() dans Sprint 5
+     * deprecated Remplacé par grouperParTrancheAttente() dans Sprint 5
      */
     @SuppressWarnings("unused")
     private Map<LocalDateTime, List<Reservation>> grouperParVolExact(List<Reservation> reservations) {
@@ -453,18 +453,29 @@ public class PlanificationService {
             
             // Retirer la première réservation de la liste
             reservationsNonAssignees.remove(premiereReservation);
-            
+
             // Enregistrer les assignations
             for (Reservation reservation : reservationsDuVehicule) {
                 enregistrerAssignation(reservation, vehicule, date);
             }
-            
-            // Calculer le trajet complet
-            TrajetComplet trajetComplet = trajetCalculator.calculerTrajetComplet(heureVol, reservationsDuVehicule);
-            
+
+            // Sprint 5 : Calculer l'heure de départ spécifique à ce véhicule
+            // = heure d'arrivée du DERNIER vol des réservations assignées à ce véhicule
+            LocalDateTime heureDepartVehicule = reservationsDuVehicule.stream()
+                    .map(Reservation::getDateHeureArrivee)
+                    .max(Comparator.naturalOrder())
+                    .orElse(heureVol); // fallback sur heureVol si liste vide (ne devrait pas arriver)
+
+            logger.info("Sprint 5 - Véhicule " + vehicule.getReference() +
+                       " : heure départ = " + heureDepartVehicule +
+                       " (dernier vol des " + reservationsDuVehicule.size() + " réservations)");
+
+            // Calculer le trajet complet avec l'heure de départ spécifique au véhicule
+            TrajetComplet trajetComplet = trajetCalculator.calculerTrajetComplet(heureDepartVehicule, reservationsDuVehicule);
+
             // Stocker l'heure de retour du véhicule
             vehiculesHeureRetour.put(vehicule.getIdVehicule(), trajetComplet.getHeureRetour());
-            
+
             // Ajouter au résultat
             int vehiculeId = vehicule.getIdVehicule();
             VehiculePlanDTO vehiculePlan;
@@ -474,12 +485,12 @@ public class PlanificationService {
             } else {
                 vehiculePlan = vehiculePlans.get(vehiculeId);
             }
-            
-            // Créer un nouveau voyage
+
+            // Créer un nouveau voyage avec l'heure de départ spécifique au véhicule
             int numeroVoyage = vehiculePlan.getNombreVoyages() + 1;
             VoyageDTO voyage = new VoyageDTO(
                 numeroVoyage,
-                heureVol,
+                heureDepartVehicule,
                 trajetComplet.getHeureRetour(),
                 trajetComplet.getDistanceTotale(),
                 new ArrayList<>(reservationsDuVehicule),

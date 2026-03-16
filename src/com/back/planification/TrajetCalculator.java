@@ -78,8 +78,8 @@ public class TrajetCalculator {
             return new TrajetComplet(heureDepart, 0, new ArrayList<>());
         }
         int vitesseMoyenne = parametre.getVitesseMoyenne();
-        int tempsAttente = parametre.getTempsAttente();
-        logger.info("Paramètres : vitesse=" + vitesseMoyenne + " km/h, attente=" + tempsAttente + " min");
+        // Note: tempsAttente est utilisé pour le regroupement des vols (Sprint 5), pas pour le calcul de trajet
+        logger.info("Paramètres : vitesse=" + vitesseMoyenne + " km/h");
 
         // Étape 3 : Extraire les hôtels uniques des réservations
         Set<Integer> hotelIdsSet = reservations.stream()
@@ -145,9 +145,9 @@ public class TrajetCalculator {
             int distanceSegment = distanceRepository.getDistance(fromId, toId);
             distanceCumuleeAller += distanceSegment;
 
-            // Calculer le temps de trajet
+            // Calculer le temps de trajet (distance / vitesse, sans temps d'attente supplémentaire)
             double tempsHeures = (double) distanceSegment / vitesseMoyenne;
-            int tempsMinutes = (int) (tempsHeures * 60) + tempsAttente;
+            int tempsMinutes = (int) (tempsHeures * 60);
             heureActuelle = heureActuelle.plusMinutes(tempsMinutes);
 
             // Créer le détail de l'arrêt
