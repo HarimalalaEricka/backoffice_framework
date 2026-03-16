@@ -355,3 +355,193 @@ Permettre à un véhicule d'effectuer **plusieurs trajets par jour** en calculan
 - [x] Colonne **Distance cumulée** : km depuis aéroport
 
 ---
+
+---
+
+# 🕐 SPRINT 5 – REGROUPEMENT PAR TRANCHE DE TEMPS D'ATTENTE
+
+## 🎯 Objectif
+Regrouper les réservations selon le **temps d'attente** configurable (table `Parametre`) au lieu de grouper par vol exact.
+L'heure de départ devient l'heure d'arrivée du **dernier vol** du groupe.
+
+---
+
+## 📋 CONTEXTE & RÈGLES MÉTIER
+
+### Comportement actuel (Sprint 3)
+- Réservations groupées par `date_heure_arrivee` **exacte**
+- Heure de départ = heure du vol
+
+### Nouveau comportement (Sprint 5)
+- Réservations groupées par **tranche de temps d'attente**
+- Premier vol du jour → définit le début de la 1ère tranche
+- Durée de tranche = `Parametre.temps_attente` (ex: 30 min)
+- Tous les vols arrivant dans cette tranche sont groupés ensemble
+- Heure de départ effective = heure du **dernier** vol du groupe
+
+### Exemple concret
+```
+Parametre.temps_attente = 30 minutes
+
+Groupe 1 :
+  - Premier vol : 09:00:00
+  - Tranche : 09:00:00 → 09:30:00
+  - Vols regroupés : 09:00, 09:05, 09:10, 09:12, 09:15, 09:20, 09:28
+  - Dernier vol : 09:28:00
+  - ✅ Heure de départ = 09:28:00
+
+Groupe 2 :
+  - Premier vol après fin tranche précédente : 11:30:00
+  - Tranche : 11:30:00 → 12:00:00
+  - Vols regroupés : 11:30, 11:40, 11:50, 12:00
+  - Dernier vol : 12:00:00
+  - ✅ Heure de départ = 12:00:00
+```
+
+### Règle critique
+- **RG-S5-1** : Heure maximale de départ = fin de la tranche
+
+---
+
+## 🔵 1️⃣ CLASSES À MODIFIER
+
+### 📦 Package : `com.app.planification`
+
+#### PlanificationService.java (MODIFIER)
+
+**Injection de ParametreRepository :**
+- [x] Ajouter attribut `private final ParametreRepository parametreRepository;`
+- [x] Modifier constructeur par défaut pour initialiser `ParametreRepository`
+- [x] Modifier constructeur avec injection pour accepter `ParametreRepository`
+
+**Nouvelle méthode de regroupement :**
+- [x] Renommer `grouperParVol()` → `grouperParVolExact()` (garder pour référence)
+- [x] Créer nouvelle méthode `grouperParTrancheAttente(List<Reservation> reservations, int tempsAttenteMinutes)`
+  - [x] Trier les réservations par `date_heure_arrivee ASC`
+  - [x] Première réservation = début de la 1ère tranche
+  - [x] Calculer fin de tranche = début + `tempsAttenteMinutes`
+  - [x] Itérer sur les réservations :
+    - Si `date_heure_arrivee <= fin tranche` → ajouter au groupe courant
+    - Sinon → nouveau groupe avec cette réservation comme début
+  - [x] Retourner `Map<LocalDateTime, List<Reservation>>` où la clé = heure du **dernier** vol du groupe
+
+**Modification de planifierJour() :**
+- [x] Récupérer les paramètres via `ParametreRepository.getParametre()`
+- [x] Extraire `int tempsAttente = parametre.getTempsAttente()`
+- [x] Remplacer appel `grouperParVol(reservations)` par `grouperParTrancheAttente(reservations, tempsAttente)`
+- [x] Logger les groupes créés avec leurs tranches
+
+---
+
+## 🟢 2️⃣ ALGORITHME DÉTAILLÉ
+
+### grouperParTrancheAttente(List<Reservation> reservations, int tempsAttenteMinutes)
+
+```
+ENTRÉE: reservations (non triées), tempsAttenteMinutes (ex: 30)
+SORTIE: Map<LocalDateTime, List<Reservation>>
+        où clé = heure de départ (dernier vol du groupe)
+
+1. Trier reservations par date_heure_arrivee ASC
+
+2. Initialiser:
+   - groupes = nouvelle Map vide
+   - groupeCourant = nouvelle liste vide
+   - debutTranche = null
+   - finTranche = null
+
+3. Pour chaque reservation dans reservations:
+
+   SI debutTranche == null ALORS
+      // Première réservation → nouveau groupe
+      debutTranche = reservation.date_heure_arrivee
+      finTranche = debutTranche + tempsAttenteMinutes minutes
+      groupeCourant.ajouter(reservation)
+
+   SINON SI reservation.date_heure_arrivee <= finTranche ALORS
+      // Réservation dans la tranche courante
+      groupeCourant.ajouter(reservation)
+
+   SINON
+      // Hors de la tranche → fermer groupe courant + nouveau groupe
+      heureDepart = groupeCourant.dernier().date_heure_arrivee  // DERNIER vol
+      groupes.ajouter(heureDepart, groupeCourant)
+
+      // Nouveau groupe
+      groupeCourant = nouvelle liste avec reservation
+      debutTranche = reservation.date_heure_arrivee
+      finTranche = debutTranche + tempsAttenteMinutes minutes
+   FIN SI
+
+4. // Ne pas oublier le dernier groupe
+   SI groupeCourant non vide ALORS
+      heureDepart = groupeCourant.dernier().date_heure_arrivee
+      groupes.ajouter(heureDepart, groupeCourant)
+   FIN SI
+
+5. RETOURNER groupes
+```
+
+---
+
+## 🟣 3️⃣ NOUVEAU DTO (OPTIONNEL)
+
+### TrancheHoraireDTO.java (À CRÉER - optionnel pour affichage)
+- [ ] Créer classe dans `src/com/back/planification/`
+- [ ] Attribut `LocalDateTime debutTranche`
+- [ ] Attribut `LocalDateTime finTranche`
+- [ ] Attribut `LocalDateTime heureDepart` (= dernier vol)
+- [ ] Attribut `int nombreReservations`
+- [ ] Attribut `int totalPersonnes`
+- [ ] Getters/Setters
+
+---
+
+## 🟡 4️⃣ AFFICHAGE (OPTIONNEL)
+
+### Modification planification_result.jsp
+- [ ] Afficher la **tranche horaire** pour chaque groupe de véhicules
+- [ ] Format : "Tranche 09:00 - 09:30 | Départ effectif : 09:28"
+
+---
+
+## 🧪 5️⃣ TESTS À FAIRE
+
+### Tests unitaires
+- [ ] **Cas 1 groupe unique** : Tous les vols dans une seule tranche de 30 min
+- [ ] **Cas 2 groupes distincts** : Vols 09:00-09:28 et 11:30-12:00 → 2 groupes
+- [ ] **Cas limite** : Vol à exactement fin de tranche (09:30:00) → appartient au groupe
+- [ ] **Cas hors tranche** : Vol à 09:31:00 → nouveau groupe
+- [ ] **Cas temps_attente différent** : Tester avec 15 min, 45 min, 60 min
+
+### Tests d'intégration
+- [ ] Vérifier que l'heure de départ des véhicules = dernier vol du groupe
+- [ ] Vérifier que le calcul trajet utilise la bonne heure de départ
+- [ ] Vérifier cohérence avec les règles de réutilisation véhicule (Sprint 3)
+
+---
+
+## 📁 6️⃣ FICHIERS IMPACTÉS
+
+| Fichier | Action | Priorité |
+|---------|--------|----------|
+| `PlanificationService.java` | MODIFIER - logique principale | ⭐⭐⭐ |
+| `ParametreRepository.java` | UTILISER (existant) | ⭐⭐ |
+| `TrancheHoraireDTO.java` | CRÉER (optionnel) | ⭐ |
+| `planification_result.jsp` | MODIFIER (optionnel) | ⭐ |
+
+---
+
+## ⚠️ NOTES IMPORTANTES
+
+1. **Cas paramètre absent** : Si `Parametre` est null, utiliser valeur par défaut (30 min) ou lever exception
+
+2. **Cohérence avec Sprint 3** : Le regroupement par tranche N'AFFECTE PAS :
+   - Le calcul de trajet (utilise toujours l'heure de départ effective)
+   - La réutilisation des véhicules (vérifie heureRetour vs heureDepart)
+
+3. **Attention à la clé de la Map** : Utiliser l'heure du **dernier** vol comme clé, pas le début de tranche
+
+4. **Tri initial** : Les réservations DOIVENT être triées par `date_heure_arrivee ASC` AVANT le regroupement
+
+---

@@ -30,6 +30,7 @@ public class PlanificationService {
     private final AssignationRepository assignationRepository;
     private final TrajetCalculator trajetCalculator;
     private final HotelRepository hotelRepository;
+    private final ParametreRepository parametreRepository;
 
     // Constantes DB
     private static final String DB_URL = "jdbc:postgresql://localhost:5432/gestion_ticket";
@@ -43,27 +44,29 @@ public class PlanificationService {
         this.reservationRepository = new ReservationRepository(DB_URL, DB_USER, DB_PASSWORD);
         this.vehiculeRepository = new VehiculeRepository(DB_URL, DB_USER, DB_PASSWORD);
         this.assignationRepository = new AssignationRepository(DB_URL, DB_USER, DB_PASSWORD);
-        
-        // Initialiser TrajetCalculator
+
+        // Initialiser TrajetCalculator et ParametreRepository
         DistanceRepository distanceRepo = new DistanceRepository(DB_URL, DB_USER, DB_PASSWORD);
-        ParametreRepository parametreRepo = new ParametreRepository(DB_URL, DB_USER, DB_PASSWORD);
+        this.parametreRepository = new ParametreRepository(DB_URL, DB_USER, DB_PASSWORD);
         this.hotelRepository = new HotelRepository(DB_URL, DB_USER, DB_PASSWORD);
-        this.trajetCalculator = new TrajetCalculator(distanceRepo, parametreRepo, hotelRepository);
+        this.trajetCalculator = new TrajetCalculator(distanceRepo, parametreRepository, hotelRepository);
     }
 
     /**
      * Constructeur avec injection des repositories (pour tests)
      */
-    public PlanificationService(ReservationRepository reservationRepo, 
+    public PlanificationService(ReservationRepository reservationRepo,
                                  VehiculeRepository vehiculeRepo,
                                  AssignationRepository assignationRepo,
                                  TrajetCalculator trajetCalc,
-                                 HotelRepository hotelRepo) {
+                                 HotelRepository hotelRepo,
+                                 ParametreRepository parametreRepo) {
         this.reservationRepository = reservationRepo;
         this.vehiculeRepository = vehiculeRepo;
         this.assignationRepository = assignationRepo;
         this.trajetCalculator = trajetCalc;
         this.hotelRepository = hotelRepo;
+        this.parametreRepository = parametreRepo;
     }
 
     /**
@@ -109,10 +112,20 @@ public class PlanificationService {
         // Clé: idVehicule, Valeur: heure de retour à l'aéroport
         Map<Integer, LocalDateTime> vehiculesHeureRetour = new HashMap<>();
         logger.info("Réutilisation des véhicules activée (Sprint 3)");
-        
-        // Étape 4 : Grouper les réservations par vol (même date_heure_arrivee)
-        Map<LocalDateTime, List<Reservation>> groupesParVol = grouperParVol(reservations);
-        logger.info("Nombre de groupes (vols) : " + groupesParVol.size());
+
+        // Sprint 5 : Récupérer le temps d'attente depuis les paramètres
+        int tempsAttente = 0; // Valeur par défaut
+        com.app.models.Parametre parametre = parametreRepository.getParametre();
+        if (parametre != null) {
+            tempsAttente = parametre.getTempsAttente();
+            logger.info("Sprint 5 - Temps d'attente récupéré : " + tempsAttente + " minutes");
+        } else {
+            logger.warning("Sprint 5 - Paramètre non trouvé, utilisation de la valeur par défaut : " + tempsAttente + " minutes");
+        }
+
+        // Étape 4 : Sprint 5 - Grouper les réservations par tranche de temps d'attente
+        Map<LocalDateTime, List<Reservation>> groupesParVol = grouperParTrancheAttente(reservations, tempsAttente);
+        logger.info("Nombre de groupes (tranches) : " + groupesParVol.size());
         
         // Étape 5 : Trier les groupes par heure d'arrivée ASC
         List<Map.Entry<LocalDateTime, List<Reservation>>> groupesTries = groupesParVol.entrySet()
@@ -194,11 +207,83 @@ public class PlanificationService {
     }
 
     /**
-     * Groupe les réservations par vol (même date_heure_arrivee).
+     * SPRINT 3 - Groupe les réservations par vol exact (même date_heure_arrivee).
+     * @deprecated Remplacé par grouperParTrancheAttente() dans Sprint 5
      */
-    private Map<LocalDateTime, List<Reservation>> grouperParVol(List<Reservation> reservations) {
+    @SuppressWarnings("unused")
+    private Map<LocalDateTime, List<Reservation>> grouperParVolExact(List<Reservation> reservations) {
         return reservations.stream()
                 .collect(Collectors.groupingBy(Reservation::getDateHeureArrivee));
+    }
+
+    /**
+     * SPRINT 5 - Groupe les réservations par tranche de temps d'attente.
+     *
+     * Algorithme :
+     * 1. Trier les réservations par date_heure_arrivee ASC
+     * 2. Premier vol = début de la tranche
+     * 3. Fin tranche = début + tempsAttenteMinutes
+     * 4. Si vol suivant <= fin tranche → même groupe
+     * 5. Si vol suivant > fin tranche → nouveau groupe
+     * 6. Clé de la Map = heure du DERNIER vol du groupe (= heure de départ effective)
+     *
+     * @param reservations Liste des réservations (non triées)
+     * @param tempsAttenteMinutes Durée de la tranche en minutes (ex: 30)
+     * @return Map où clé = heure de départ (dernier vol du groupe), valeur = liste des réservations
+     */
+    private Map<LocalDateTime, List<Reservation>> grouperParTrancheAttente(List<Reservation> reservations, int tempsAttenteMinutes) {
+        // Trier par date_heure_arrivee ASC
+        List<Reservation> reservationsTriees = reservations.stream()
+                .sorted(Comparator.comparing(Reservation::getDateHeureArrivee))
+                .collect(Collectors.toList());
+
+        // Map résultat - LinkedHashMap pour conserver l'ordre d'insertion
+        Map<LocalDateTime, List<Reservation>> groupes = new LinkedHashMap<>();
+
+        if (reservationsTriees.isEmpty()) {
+            return groupes;
+        }
+
+        // Variables pour le groupe courant
+        List<Reservation> groupeCourant = new ArrayList<>();
+        LocalDateTime debutTranche = null;
+        LocalDateTime finTranche = null;
+
+        for (Reservation reservation : reservationsTriees) {
+            LocalDateTime heureArrivee = reservation.getDateHeureArrivee();
+
+            if (debutTranche == null) {
+                // Première réservation → nouveau groupe
+                debutTranche = heureArrivee;
+                finTranche = debutTranche.plusMinutes(tempsAttenteMinutes);
+                groupeCourant.add(reservation);
+                logger.info("Sprint 5 - Nouvelle tranche : " + debutTranche + " → " + finTranche);
+            } else if (!heureArrivee.isAfter(finTranche)) {
+                // Réservation dans la tranche courante (heureArrivee <= finTranche)
+                groupeCourant.add(reservation);
+            } else {
+                // Hors de la tranche → fermer groupe courant + nouveau groupe
+                LocalDateTime heureDepart = groupeCourant.get(groupeCourant.size() - 1).getDateHeureArrivee();
+                groupes.put(heureDepart, new ArrayList<>(groupeCourant));
+                logger.info("Sprint 5 - Groupe fermé : " + groupeCourant.size() + " réservations, départ = " + heureDepart);
+
+                // Nouveau groupe
+                groupeCourant = new ArrayList<>();
+                groupeCourant.add(reservation);
+                debutTranche = heureArrivee;
+                finTranche = debutTranche.plusMinutes(tempsAttenteMinutes);
+                logger.info("Sprint 5 - Nouvelle tranche : " + debutTranche + " → " + finTranche);
+            }
+        }
+
+        // Ne pas oublier le dernier groupe
+        if (!groupeCourant.isEmpty()) {
+            LocalDateTime heureDepart = groupeCourant.get(groupeCourant.size() - 1).getDateHeureArrivee();
+            groupes.put(heureDepart, groupeCourant);
+            logger.info("Sprint 5 - Dernier groupe fermé : " + groupeCourant.size() + " réservations, départ = " + heureDepart);
+        }
+
+        return groupes;
     }
 
     /**
