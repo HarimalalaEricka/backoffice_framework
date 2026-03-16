@@ -39,6 +39,7 @@ Module : Reservation
         - Calculer l'heure de depart du vehicule selon l'intervalle de depart
         - Verifier si une reservation peut etre incluse dans cet intervalle
                     Exemple d'intervalle :  [08:00 - 08:30]
+        - instervalle compris entre "heure du vol" + "temps_attente dans la table Parametre
 
         Regles de gestion :
             - Heure maximale de depart = fin de l'intervalle
