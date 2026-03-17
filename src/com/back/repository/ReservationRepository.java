@@ -96,4 +96,42 @@ public class ReservationRepository {
         }
         return reservations;
     }
+
+    /**
+     * Récupère les réservations non assignées pour une date donnée
+     * dont l'heure d'arrivée est antérieure ou égale au cutoff fourni.
+     */
+    public List<Reservation> findUnassignedByDateAndArrivalBefore(LocalDate date, java.time.LocalDateTime cutoff) {
+        List<Reservation> reservations = new ArrayList<>();
+        Connection conn = connexion.getConnection();
+        if (conn == null) {
+            System.err.println("Connexion non établie");
+            return reservations;
+        }
+
+        String sql = "SELECT r.idReservation, r.client_id, r.nbr_pers, r.date_heure_arrivee, r.hotel_id " +
+                     "FROM Reservation r " +
+                     "WHERE DATE(r.date_heure_arrivee) = ? " +
+                     "AND r.date_heure_arrivee <= ? " +
+                     "AND NOT EXISTS (SELECT 1 FROM Assignation a WHERE a.reservation_id = r.idReservation) " +
+                     "ORDER BY r.date_heure_arrivee ASC";
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDate(1, Date.valueOf(date));
+            ps.setTimestamp(2, java.sql.Timestamp.valueOf(cutoff));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    int idReservation = rs.getInt("idReservation");
+                    String clientId = rs.getString("client_id");
+                    int nbrPers = rs.getInt("nbr_pers");
+                    java.time.LocalDateTime dateHeureArrivee = rs.getTimestamp("date_heure_arrivee").toLocalDateTime();
+                    int hotelId = rs.getInt("hotel_id");
+                    reservations.add(new Reservation(idReservation, clientId, nbrPers, dateHeureArrivee, hotelId));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur lors de la récupération des réservations non assignées : " + e.getMessage());
+        }
+        return reservations;
+    }
 }

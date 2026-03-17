@@ -70,6 +70,35 @@ public class PlanificationService {
     }
 
     /**
+     * Assignation automatique : récupère les réservations non assignées
+     * dont l'heure d'arrivée est <= debutIntervalle et crée des Assignation
+     * en les liant au véhicule/groupage indiqué.
+     * Retourne le nombre d'assignations créées.
+     */
+    public int assignerReservationsNonAssigneesAuIntervalle(LocalDate date, LocalDateTime debutIntervalle, int vehiculeId) {
+        List<Reservation> candidats = reservationRepository.findUnassignedByDateAndArrivalBefore(date, debutIntervalle);
+        int count = 0;
+        for (Reservation r : candidats) {
+            try {
+                if (assignationRepository.existsByReservationId(r.getIdReservation())) {
+                    continue; // déjà assignée entre-temps
+                }
+
+                Assignation a = new Assignation();
+                a.setReservationId(r.getIdReservation());
+                a.setVehiculeId(vehiculeId);
+                a.setDateHeurePlanification(LocalDateTime.now());
+                assignationRepository.save(a);
+                count++;
+                logger.info("Assignation auto : reservation " + r.getIdReservation() + " -> vehicule " + vehiculeId);
+            } catch (Exception e) {
+                logger.warning("Échec assignation auto pour réservation " + r.getIdReservation() + " : " + e.getMessage());
+            }
+        }
+        return count;
+    }
+
+    /**
      * Méthode principale : Planifie les réservations pour une date donnée.
      * 
      * Règles métier SPRINT 4 :
