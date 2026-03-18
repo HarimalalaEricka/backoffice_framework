@@ -130,34 +130,7 @@
             </button>
         </form>
 
-        <hr style="margin:30px 0">
-
-        <h2>Créer un nouvel intervalle (assignation auto)</h2>
-        <form action="<%= request.getContextPath() %>/planification/assign" method="POST">
-            <div class="form-group">
-                <label for="intervalDate">Date</label>
-                <input type="date" id="intervalDate" name="date" required min="<%= java.time.LocalDate.now() %>" value="<%= java.time.LocalDate.now() %>">
-            </div>
-            <div class="form-group">
-                <label for="intervalDebut">Heure début (HH:mm)</label>
-                <input type="time" id="intervalDebut" name="debut" required>
-            </div>
-            <div class="form-group">
-                <label for="intervalFin">Heure fin (HH:mm)</label>
-                <input type="time" id="intervalFin" name="fin">
-            </div>
-            <div class="form-group">
-                <label for="vehiculeId">ID Véhicule (optionnel)</label>
-                <input type="number" id="vehiculeId" name="vehiculeId" min="0" placeholder="0 = groupe">
-            </div>
-            <button type="submit" class="btn-submit">Créer intervalle et assigner</button>
-        </form>
-
-        <% if (request.getAttribute("assignedCount") != null) { %>
-            <div class="info-box" style="margin-top:15px;">
-                <strong><%= request.getAttribute("assignedCount") %></strong> réservation(s) assignée(s) automatiquement.
-            </div>
-        <% } else if (request.getAttribute("success") != null) { %>
+        <% if (request.getAttribute("success") != null) { %>
             <div class="info-box" style="margin-top:15px;"><%= request.getAttribute("success") %></div>
         <% } %>
     </div>
