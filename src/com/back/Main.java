@@ -18,7 +18,7 @@ public class Main {
         System.out.println("=== Test de Connexion PostgreSQL ===");
         String url = "jdbc:postgresql://localhost:5432/gestion_ticket";
         String username = "postgres";
-        String password = "kanto"; // À adapter si un mot de passe est défini
+        String password = "postgres"; // À adapter si un mot de passe est défini
         
         Connexion connexion = new Connexion(url, username, password);
         connexion.connect();
