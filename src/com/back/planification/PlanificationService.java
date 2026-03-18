@@ -35,7 +35,7 @@ public class PlanificationService {
     // Constantes DB
     private static final String DB_URL = "jdbc:postgresql://localhost:5432/gestion_ticket";
     private static final String DB_USER = "postgres";
-    private static final String DB_PASSWORD = "postgres";
+    private static final String DB_PASSWORD = "kanto";
 
     /**
      * Constructeur par défaut avec connexion DB standard
@@ -169,6 +169,40 @@ public class PlanificationService {
         for (Map.Entry<LocalDateTime, List<Reservation>> entry : groupesTries) {
             LocalDateTime heureVol = entry.getKey();
             List<Reservation> groupe = entry.getValue();
+            
+            // SPRINT 5 - TACHE 1 : Assignation automatique des réservations non assignées
+            // Identifier toutes les réservations non assignées de la journée
+            // Sélectionner celles dont l'heure d'arrivée est avant le début du nouvel intervalle de départ
+            // Les assigner automatiquement au groupe de l'intervalle actuel
+            
+            // Trouver l'heure d'arrivée la plus tôt dans ce groupe (début de l'intervalle)
+            LocalDateTime debutIntervalle = groupe.stream()
+                    .map(Reservation::getDateHeureArrivee)
+                    .min(Comparator.naturalOrder())
+                    .orElse(heureVol); // fallback
+            
+            logger.info("Sprint 5 - Tâche 1 : Recherche de réservations non assignées avant " + debutIntervalle);
+            
+            // Récupérer toutes les réservations non assignées de la journée qui arrivent avant debutIntervalle
+            List<Reservation> reservationsNonAssigneesAvant = reservationRepository
+                    .findUnassignedByDateAndArrivalBefore(date, debutIntervalle);
+            
+            // Filtrer celles qui ne sont pas déjà dans le groupe actuel
+            reservationsNonAssigneesAvant = reservationsNonAssigneesAvant.stream()
+                    .filter(r -> groupe.stream().noneMatch(gr -> gr.getIdReservation() == r.getIdReservation()))
+                    .collect(Collectors.toList());
+            
+            if (!reservationsNonAssigneesAvant.isEmpty()) {
+                logger.info("Sprint 5 - Tâche 1 : " + reservationsNonAssigneesAvant.size() + 
+                           " réservations non assignées trouvées avant " + debutIntervalle + 
+                           ", ajoutées au groupe actuel");
+                
+                // Ajouter ces réservations au groupe actuel
+                groupe.addAll(reservationsNonAssigneesAvant);
+                
+                // Retrier le groupe par heure d'arrivée pour maintenir l'ordre
+                groupe.sort(Comparator.comparing(Reservation::getDateHeureArrivee));
+            }
             
             // Filtrer les réservations déjà assignées
             List<Reservation> reservationsAAssigner = groupe.stream()

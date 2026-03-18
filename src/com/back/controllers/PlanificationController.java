@@ -133,112 +133,27 @@ public class PlanificationController {
      * API JSON : Assigne automatiquement les réservations non assignées
      * dont l'heure d'arrivée <= debut (date+heure) au véhicule indiqué.
      * Route: POST /api/planification/assignUnassigned?date=YYYY-MM-DD&debut=HH:mm&vehiculeId=123
+     * REMOVED: Cette fonctionnalité est maintenant automatique dans planifierJour()
      */
-    @HandlePost("/api/planification/assignUnassigned")
-    @JsonResponse
-    public Object postAssignUnassigned(@RequestParam("date") String date,
-                                       @RequestParam("debut") String debut,
-                                       @RequestParam("vehiculeId") String vehiculeIdStr) {
-        try {
-            if (date == null || date.trim().isEmpty() || debut == null || debut.trim().isEmpty()) {
-                return new ApiError("error", "Les paramètres 'date' et 'debut' sont requis.");
-            }
-
-            LocalDate localDate;
-            try {
-                localDate = LocalDate.parse(date);
-            } catch (DateTimeParseException e) {
-                return new ApiError("error", "Format de date invalide. Utilisez le format YYYY-MM-DD.");
-            }
-
-            LocalTime localTime;
-            try {
-                localTime = LocalTime.parse(debut);
-            } catch (DateTimeParseException e) {
-                return new ApiError("error", "Format de temps invalide pour 'debut'. Utilisez HH:mm ou HH:mm:ss.");
-            }
-
-            int vehiculeId = 0;
-            try {
-                if (vehiculeIdStr != null && !vehiculeIdStr.trim().isEmpty()) {
-                    vehiculeId = Integer.parseInt(vehiculeIdStr);
-                }
-            } catch (NumberFormatException e) {
-                return new ApiError("error", "vehiculeId invalide.");
-            }
-
-            LocalDateTime cutoff = localDate.atTime(localTime);
-            PlanificationService planificationService = new PlanificationService();
-            int assigned = planificationService.assignerReservationsNonAssigneesAuIntervalle(localDate, cutoff, vehiculeId);
-
-            Map<String, Object> resp = new HashMap<>();
-            resp.put("status", "success");
-            resp.put("assignedCount", assigned);
-            return resp;
-        } catch (Exception e) {
-            return new ApiError("error", "Erreur lors de l'assignation automatique : " + e.getMessage());
-        }
-    }
+    // @HandlePost("/api/planification/assignUnassigned")
+    // @JsonResponse
+    // public Object postAssignUnassigned(@RequestParam("date") String date,
+    //                                    @RequestParam("debut") String debut,
+    //                                    @RequestParam("vehiculeId") String vehiculeIdStr) {
+    //     // Code supprimé car l'assignation est automatique
+    // }
 
     /**
      * Form POST : crée un intervalle côté serveur et déclenche l'assignation automatique.
      * Route: POST /planification/assign
+     * REMOVED: Cette fonctionnalité est maintenant automatique dans planifierJour()
      */
-    @HandlePost("/planification/assign")
-    public ModelView postAssignUnassignedForm(@RequestParam("date") String date,
-                                              @RequestParam("debut") String debut,
-                                              @RequestParam(value = "vehiculeId") String vehiculeIdStr) {
-        ModelView mv = new ModelView();
-        try {
-            if (date == null || date.trim().isEmpty() || debut == null || debut.trim().isEmpty()) {
-                mv.addAttribute("error", "Les paramètres 'date' et 'debut' sont requis.");
-                mv.setView("/planifier.jsp");
-                return mv;
-            }
-
-            java.time.LocalDate localDate;
-            try {
-                localDate = java.time.LocalDate.parse(date);
-            } catch (java.time.format.DateTimeParseException e) {
-                mv.addAttribute("error", "Format de date invalide. Utilisez le format YYYY-MM-DD.");
-                mv.setView("/planifier.jsp");
-                return mv;
-            }
-
-            java.time.LocalTime localTime;
-            try {
-                localTime = java.time.LocalTime.parse(debut);
-            } catch (java.time.format.DateTimeParseException e) {
-                mv.addAttribute("error", "Format de temps invalide pour 'debut'. Utilisez HH:mm ou HH:mm:ss.");
-                mv.setView("/planifier.jsp");
-                return mv;
-            }
-
-            int vehiculeId = 0;
-            try {
-                if (vehiculeIdStr != null && !vehiculeIdStr.trim().isEmpty()) {
-                    vehiculeId = Integer.parseInt(vehiculeIdStr);
-                }
-            } catch (NumberFormatException e) {
-                mv.addAttribute("error", "vehiculeId invalide.");
-                mv.setView("/planifier.jsp");
-                return mv;
-            }
-
-            java.time.LocalDateTime cutoff = localDate.atTime(localTime);
-            PlanificationService planificationService = new PlanificationService();
-            int assigned = planificationService.assignerReservationsNonAssigneesAuIntervalle(localDate, cutoff, vehiculeId);
-
-            mv.addAttribute("assignedCount", assigned);
-            mv.addAttribute("success", assigned + " réservation(s) assignée(s) automatiquement.");
-            mv.setView("/planifier.jsp");
-            return mv;
-        } catch (Exception e) {
-            mv.addAttribute("error", "Erreur lors de l'assignation automatique : " + e.getMessage());
-            mv.setView("/planifier.jsp");
-            return mv;
-        }
-    }
+    // @HandlePost("/planification/assign")
+    // public ModelView postAssignUnassignedForm(@RequestParam("date") String date,
+    //                                           @RequestParam("debut") String debut,
+    //                                           @RequestParam(value = "vehiculeId") String vehiculeIdStr) {
+    //     // Code supprimé car l'assignation est automatique
+    // }
 
     /**
      * Classe interne pour les erreurs API.
