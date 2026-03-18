@@ -74,12 +74,12 @@ public class Main {
             
             // Détails des véhicules assignés
             System.out.println("\nDétails par véhicule :");
-            result.getVehiculesAssignes().forEach((idVehicule, plan) -> {
-                System.out.println("Véhicule " + idVehicule + " (" + plan.getReference() + ") :");
+            result.getVehiculesAssignes().forEach(plan -> {
+                System.out.println("Véhicule " + plan.getVehicule().getIdVehicule() + " (" + plan.getVehicule().getReference() + ") :");
                 System.out.println("  - Réservations : " + plan.getReservations().size());
                 System.out.println("  - Total personnes : " + plan.getTotalPersonnes());
                 System.out.println("  - Heure départ : " + plan.getHeureDepart());
-                System.out.println("  - Trajet : " + plan.getTrajet().getDistanceKm() + " km");
+                System.out.println("  - Distance totale : " + plan.getDistanceTotaleTousVoyages() + " km");
             });
             
             // Réservations non assignées
