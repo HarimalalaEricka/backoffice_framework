@@ -1,0 +1,87 @@
+Team Lead :
+    ETU003366 / Vatosoa Wanda
+
+Developpeurs :
+    ETU003324 / Harenkantou
+    ETU003350 / Harimalala Ericka
+
+
+BACKOFFICE
+Module : Planification
+
+    TACHE 1 : Disponibilite vehicule et multi-trajets (reutilisation sur la meme date)
+        Responsable :
+            ETU003350
+
+        Metier :
+            - Une voiture peut effectuer plusieurs trajets pour une meme date
+                (1 trajet = aller + retour)
+            - Pour chaque vehicule, conserver l'heure de retour du dernier trajet effectue
+            - Lors du traitement d'un nouveau groupe (tranche) :
+                - Vehicule jamais utilise => disponible
+                - Vehicule deja utilise => disponible si heure_retour <= heure_depart_du groupe
+            - Si disponible, le vehicule peut etre reassigne au groupe suivant
+                et un nouveau "voyage" est cree pour ce vehicule
+
+            Exemple :
+                Groupe 1 : 09:00 -> 09:30  (depart effectif = dernier vol du groupe)
+                    VH-001-D : depart 09:20, retour 11:20
+                Groupe 2 : 11:30 -> 12:00
+                    VH-001-D est disponible car retour 11:20 <= depart du groupe 2
+
+        Regles de gestion :
+            - L'heure de retour doit venir du calcul de trajet (aller + retour)
+            - La disponibilite est verifiee AVANT d'appliquer les criteres de choix
+            - Livrables (zone de code) :
+                - Ajustements dans [backoffice_framework/src/com/back/planification/PlanificationService.java]
+                - Validation que l'affichage multi-voyages reste coherent dans [backoffice_framework/WebContent/planification_result.jsp]
+
+
+    TACHE 2 : Nouveau critere de choix vehicule (moins de trajets effectues)
+        Responsable :
+            ETU003324
+
+        Metier :
+            - Lors du choix du vehicule pour une reservation/groupe, appliquer les criteres :
+                1) Capacite vehicule >= nbr personnes a transporter
+                2) Capacite la plus proche du besoin (minimiser la capacite)
+                3) NOUVEAU : vehicule ayant le moins de trajets deja effectues sur la date
+                4) Si egalite => priorite Diesel
+                5) Si encore egalite => Random
+
+        Regles de gestion :
+            - Le critere "moins de trajets" ne s'applique que sur des vehicules DISPONIBLES
+              (donc apres la regle de disponibilite de la TACHE 1)
+            - "Nombre de trajets" = nombre de voyages deja crees pour ce vehicule sur la date (dans cette planification)
+            - Livrables (zone de code) :
+                - Regle de selection dans [backoffice_framework/src/com/back/planification/PlanificationService.java]
+                - Eventuelle utilisation du compteur deja present via VehiculePlanDTO (nombre de voyages)
+
+
+    TACHE 3 : Script SQL de test Sprint 6 (scenario multi-groupes + reutilisation)
+        Responsable :
+            ETU003350
+
+        Metier :
+            - Fournir un script de test dans le dossier scripts/ qui :
+                - Insere des vehicules comme dans l'exemple (capacite + carburant)
+                - Insere des reservations en 2 groupes (ex: 09:00->09:30 puis 11:30->12:00)
+                - Fixe le parametre temps_attente (ex: 30 minutes)
+                - Permet de verifier qu'un vehicule peut etre reutilise sur le 2e groupe si retour avant depart
+
+        Regles de gestion :
+            - Donnees de test reproductibles (nettoyage ou insertion controllée)
+            - Le scenario doit permettre de voir clairement le vehicule reutilise
+
+
+    TACHE 4 : Test Java / verification fonctionnelle Sprint 6
+        Responsable :
+            ETU003324
+
+        Metier :
+            - Ajouter un test qui verifie :
+                - Vehicule reutilisable si heure_retour <= depart du groupe suivant
+                - Le critere "moins de trajets" influence bien le choix quand capacites equivalentes
+            - Verifier dans l'output que :
+                - le nombre de voyages par vehicule augmente
+                - la planification_result affiche bien plusieurs voyages si necessaire
