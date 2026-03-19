@@ -1,0 +1,182 @@
+Team Lead :
+    ETU003366 / Vatosoa Wanda
+
+Developpeurs :
+    ETU003324 / Harenkantou
+    ETU003350 / Harimalala Ericka
+
+
+BACKOFFICE
+Module : Planification
+
+    CONTEXTE (Existant)
+        - Le regroupement par tranche temps_attente (Sprint 5) est déjà en place via la méthode grouperParTrancheAttente()
+          dans [backoffice_framework/src/com/back/planification/PlanificationService.java](backoffice_framework/src/com/back/planification/PlanificationService.java)
+        - Le tri des réservations (nb passagers DESC + nom hotel) et le remplissage progressif des véhicules (RG8)
+          existent déjà dans assignerAvecRemplissageProgressif() du même fichier.
+        - La réutilisation multi-voyages (heure_retour <= heure_depart_groupe) est gérée via vehiculesHeureRetour.
+        - LIMITATION BLOQUANTE pour Sprint 7 :
+            * La table Assignation impose UNIQUE(reservation_id) dans
+              [backoffice_framework/scripts/03032026.sql](backoffice_framework/scripts/03032026.sql)
+            * Et le code interdit plusieurs assignations par réservation (existsByReservationId)
+              dans [backoffice_framework/src/com/back/repository/AssignationRepository.java](backoffice_framework/src/com/back/repository/AssignationRepository.java)
+          => Impossible de “split passagers” sans évolution DB + repo + modèle.
+
+    REGLES METIER (Sprint 7)
+        - Une reservation devient divisible (split passagers) si aucun vehicule unique ne peut absorber tous les passagers restants.
+        - Priorite de traitement des reservations : nbPassager DESC.
+        - Pour une reservation en cours, on traite TOUTES ses divisions/sous-parties avant de passer a la reservation suivante.
+        - Resolution explicite du tri vehicule :
+          1) On recupere/ordonne d'abord les vehicules en DESC (capacite) depuis la base
+          2) Pendant le traitement d'assignation, on choisit le vehicule "plus proche" du besoin restant
+          3) Tie-breakers ensuite : nb trajets min, diesel, random
+        - Les vehicules disponibles sont tries, et le choix se fait sur la capacite la plus proche du besoin restant,
+          puis tie-breakers : nb trajets min, diesel, random.
+        - Si un vehicule est entame (places restantes), il doit etre rempli prioritairement avec des reservations compatibles
+          en parcourant la liste vers le bas.
+        - Les passagers restants non assignables d'une reservation sont reportes au regroupement suivant.
+        - Temps d'attente / regroupement reste identique aux sprints precedents.
+        - La logique trajet existante reste valable ; seul le mode d'assignation evolue.
+
+
+    TACHE 1 : Evolution DB + Repository pour supporter le split (multi-assignations par reservation)
+        Responsable :
+            ETU003350
+
+        Metier :
+            - Autoriser plusieurs "assignations" pour une meme reservation (split passagers)
+            - Chaque assignation doit stocker le nombre de passagers effectivement assignes
+              (ex: 10 passagers d'une reservation peuvent etre repartis 6 + 4 sur 2 vehicules)
+            - Une reservation est "completement assignee" si somme(passagers_assignes) == nbr_pers
+            - Une reservation est "encore a traiter" (pour report au groupe suivant) si somme(passagers_assignes) < nbr_pers
+
+        Regles de gestion :
+            - Supprimer / adapter la contrainte UNIQUE(reservation_id)
+            - Conserver l'historique multi-voyages/vehicules (pas d'ecrasement)
+            - La logique de filtrage "unassigned" Sprint 5 doit devenir compatible avec "partially assigned"
+              (pour que le reste soit repris au regroupement suivant)
+
+        Livrables (zone de code) :
+            - Migration SQL dans le dossier [backoffice_framework/scripts](backoffice_framework/scripts)
+              (ALTER TABLE Assignation : drop unique, add colonne nb_pers_assigne, etc.)
+            - Mise a jour du schema de reference dans
+              [backoffice_framework/scripts/03032026.sql](backoffice_framework/scripts/03032026.sql)
+            - Mise a jour du modele dans
+              [backoffice_framework/src/com/back/models/Assignation.java](backoffice_framework/src/com/back/models/Assignation.java)
+            - Mise a jour des methodes + ajout de methodes (sum assigned, exists-partial, etc.) dans
+              [backoffice_framework/src/com/back/repository/AssignationRepository.java](backoffice_framework/src/com/back/repository/AssignationRepository.java)
+            - Adapter la recuperation "non assignees avant cutoff" dans
+              [backoffice_framework/src/com/back/repository/ReservationRepository.java](backoffice_framework/src/com/back/repository/ReservationRepository.java)
+              pour inclure les reservations partiellement assignees (reste > 0)
+
+
+    TACHE 2 : Nouveau mode d’assignation Sprint 7 (split + traitement par reste + vehicules entames prioritaires)
+        Responsable :
+            ETU003324
+
+        Metier :
+            - Dans chaque groupe (tranche), traiter les reservations par nbPassager DESC
+            - Pour une reservation en cours :
+                * Calculer passagers_restants
+                * Tant que passagers_restants > 0 :
+                    - Si existe un vehicule unique disponible capable de prendre passagers_restants :
+                        => assigner en 1 fois (pas de split)
+                    - Sinon :
+                        => la reservation devient divisible :
+                           assigner un maximum possible en choisissant un vehicule disponible selon la regle "plus proche"
+                           du besoin restant (et tie-breakers)
+            - Prioriser le remplissage des vehicules entames :
+                * Si un vehicule a des places restantes sur le groupe courant, le remplir en premier
+                  en parcourant la liste vers le bas (reservations compatibles)
+            - Si apres tentative il reste des passagers non assignables :
+                * Reporter ces passagers au regroupement (groupe) suivant (meme run de planification)
+
+        Resolution du choix vehicule (obligatoire) :
+            1) Les vehicules sont recuperes depuis la DB en DESC capacite (base order)
+               (voir [backoffice_framework/src/com/back/repository/VehiculeRepository.java](backoffice_framework/src/com/back/repository/VehiculeRepository.java))
+            2) Parmi les vehicules DISPONIBLES, choisir la capacite "plus proche" du besoin restant
+               (interpretation simple : min(capacite >= besoin))
+            3) Tie-breakers :
+                - nb trajets min (nombre de voyages deja crees pour ce vehicule sur la date)
+                  (deja accessible via VehiculePlanDTO.getNombreVoyages())
+                - Diesel prioritaire
+                - Random si encore egalite (random explicite, pas juste return 0)
+
+        Regles de gestion :
+            - La disponibilite (heure_retour <= heure_depart_groupe) est verifiee AVANT le choix (comme Sprint 6)
+            - Temps d’attente/tranches : inchangé (grouperParTrancheAttente)
+            - TrajetCalculator et calcul d'heure_retour : inchangés (on reutilise le calcul aller+retour existant)
+
+        Livrables (zone de code) :
+            - Refactor/ajouts dans
+              [backoffice_framework/src/com/back/planification/PlanificationService.java](backoffice_framework/src/com/back/planification/PlanificationService.java)
+              (nouvelle boucle d’assignation par reservation + gestion du split + remplissage prioritaire vehicules entames)
+            - Eventuel ajustement/extension DTO si necessaire pour afficher les sous-parties (ex: passagers assignes par partie)
+              dans
+              [backoffice_framework/src/com/back/planification/VoyageDTO.java](backoffice_framework/src/com/back/planification/VoyageDTO.java)
+              et/ou [backoffice_framework/src/com/back/planification/VehiculePlanDTO.java](backoffice_framework/src/com/back/planification/VehiculePlanDTO.java)
+
+
+    TACHE 3 : Affichage resultat (multi-voyages + split passagers coherent)
+        Responsable :
+            ETU003350
+
+        Metier :
+            - Le resultat doit rendre visible :
+                * qu'une reservation a ete splittee (plusieurs sous-parties)
+                * combien de passagers de cette reservation sont dans chaque vehicule / voyage
+            - L'affichage multi-voyages existant doit rester coherent
+
+        Regles de gestion :
+            - Ne pas casser l’affichage actuel (vehicule -> voyages -> itineraire)
+            - Si un nouveau DTO/attribut est introduit (passagers_assigne_par_partie), l’affichage doit l’exploiter
+              sans dupliquer l’ancienne liste de reservations
+
+        Livrables (zone de code) :
+            - Ajustements dans
+              [backoffice_framework/WebContent/planification_result.jsp](backoffice_framework/WebContent/planification_result.jsp)
+
+
+    TACHE 4 : Script SQL de test Sprint 7 (split + vehicule entame + report regroupement)
+        Responsable :
+            ETU003350
+
+        Metier :
+            - Fournir un script de test dans le dossier [backoffice_framework/scripts](backoffice_framework/scripts)
+              qui couvre 3 points :
+                1) Split : une reservation “grosse” ne rentre dans aucun vehicule unique disponible
+                   => repartition sur plusieurs vehicules (sous-parties)
+                2) Vehicule entame : creation d’un vehicule partiellement rempli puis remplissage prioritaire
+                   avec des reservations compatibles en parcourant la liste
+                3) Report : une reservation reste partiellement non assignable sur groupe 1
+                   => le reste est tente sur groupe 2 (tranche suivante)
+
+        Regles de gestion :
+            - Donnees reproductibles (nettoyage ou insertion controllée)
+            - Parametre temps_attente fixe (ex: 30 minutes) pour forcer 2 groupes distincts
+            - Vehicules avec capacites variees et carburants differents pour valider tie-breakers
+
+        Livrables :
+            - Nouveau script dans [backoffice_framework/scripts](backoffice_framework/scripts)
+            - Requetes de verification : assignations (avec nb_pers_assigne), nb voyages, restes non assignes
+
+
+    TACHE 5 : Test Java / verification fonctionnelle Sprint 7
+        Responsable :
+            ETU003324
+
+        Metier :
+            - Ajouter un test de non-regression + scenarios Sprint 7 qui verifie :
+                * Split declenche uniquement si aucun vehicule unique ne peut absorber le besoin restant
+                * Ordre de traitement reservations : nbPassager DESC
+                * Une reservation splittee est traitee COMPLETEMENT (toutes sous-parties) avant passer a la suivante
+                * Choix vehicule : capacite plus proche, puis nb trajets min, diesel, random
+                * Remplissage prioritaire des vehicules entames
+                * Report des passagers restants au groupe suivant
+
+        Livrables (zone de code) :
+            - Nouveau fichier de test (ou extension du test existant) dans
+              [backoffice_framework/src/com/back/test/TestSprint3.java](backoffice_framework/src/com/back/test/TestSprint3.java)
+              (idealement un nouveau TestSprint7 pour isoler)
+            - Validation visuelle via
+              [backoffice_framework/WebContent/planification_result.jsp](backoffice_framework/WebContent/planification_result.jsp)
