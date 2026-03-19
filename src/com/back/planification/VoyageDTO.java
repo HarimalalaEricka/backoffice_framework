@@ -3,7 +3,9 @@ package com.app.planification;
 import com.app.models.Reservation;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * DTO représentant un voyage complet (aller-retour) d'un véhicule.
@@ -17,11 +19,13 @@ public class VoyageDTO {
     private int distanceTotale;                    // Distance totale du voyage (km)
     private List<Reservation> reservations;        // Réservations de ce voyage
     private List<TrajetDetailDTO> detailsTrajet;   // Détails des arrêts
+    private Map<Integer, Integer> passagersAssignesParReservation; // reservationId -> nb pers assignées
 
     // Constructors
     public VoyageDTO() {
         this.reservations = new ArrayList<>();
         this.detailsTrajet = new ArrayList<>();
+        this.passagersAssignesParReservation = new LinkedHashMap<>();
     }
 
     public VoyageDTO(int numeroVoyage, LocalDateTime heureDepart, LocalDateTime heureRetour, 
@@ -32,6 +36,7 @@ public class VoyageDTO {
         this.distanceTotale = distanceTotale;
         this.reservations = reservations != null ? reservations : new ArrayList<>();
         this.detailsTrajet = detailsTrajet != null ? detailsTrajet : new ArrayList<>();
+        this.passagersAssignesParReservation = new LinkedHashMap<>();
     }
 
     // Getters and Setters
@@ -83,12 +88,41 @@ public class VoyageDTO {
         this.detailsTrajet = detailsTrajet;
     }
 
+    public Map<Integer, Integer> getPassagersAssignesParReservation() {
+        return passagersAssignesParReservation;
+    }
+
+    public void setPassagersAssignesParReservation(Map<Integer, Integer> passagersAssignesParReservation) {
+        this.passagersAssignesParReservation = passagersAssignesParReservation != null
+                ? passagersAssignesParReservation
+                : new LinkedHashMap<>();
+    }
+
+    public void setPassagersAssignesPourReservation(int reservationId, int nbPassagers) {
+        if (this.passagersAssignesParReservation == null) {
+            this.passagersAssignesParReservation = new LinkedHashMap<>();
+        }
+        this.passagersAssignesParReservation.put(reservationId, nbPassagers);
+    }
+
+    public int getPassagersAssignesPourReservation(Reservation reservation) {
+        if (reservation == null) {
+            return 0;
+        }
+
+        if (passagersAssignesParReservation == null || !passagersAssignesParReservation.containsKey(reservation.getIdReservation())) {
+            return reservation.getNbrPers();
+        }
+
+        return passagersAssignesParReservation.get(reservation.getIdReservation());
+    }
+
     // Méthodes utilitaires
     public int getTotalPersonnes() {
         if (reservations == null) return 0;
         return reservations.stream()
-                .mapToInt(Reservation::getNbrPers)
-                .sum();
+            .mapToInt(this::getPassagersAssignesPourReservation)
+            .sum();
     }
 
     public long getDureeVoyage() {

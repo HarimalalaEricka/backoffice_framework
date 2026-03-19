@@ -22,7 +22,7 @@ public class AssignationRepository {
     }
 
     /**
-     * Vérifie si une réservation est déjà assignée
+        * Vérifie si une réservation possède au moins une assignation
      */
     public boolean existsByReservationId(int reservationId) {
         Connection conn = connexion.getConnection();
@@ -46,6 +46,104 @@ public class AssignationRepository {
     }
 
     /**
+     * Somme des passagers assignés pour une réservation.
+     */
+    public int getTotalPassagersAssignesByReservationId(int reservationId) {
+        Connection conn = connexion.getConnection();
+        if (conn == null) {
+            System.err.println("Connexion non établie");
+            return 0;
+        }
+
+        String sql = "SELECT COALESCE(SUM(nb_pers_assigne), 0) FROM Assignation WHERE reservation_id = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, reservationId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur lors du calcul des passagers assignés : " + e.getMessage());
+        }
+        return 0;
+    }
+
+    /**
+     * Nombre d'assignations existantes pour une réservation.
+     */
+    public int countByReservationId(int reservationId) {
+        Connection conn = connexion.getConnection();
+        if (conn == null) {
+            System.err.println("Connexion non établie");
+            return 0;
+        }
+
+        String sql = "SELECT COUNT(*) FROM Assignation WHERE reservation_id = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, reservationId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur lors du comptage des assignations : " + e.getMessage());
+        }
+        return 0;
+    }
+
+    /**
+     * Retourne true si la réservation est complètement assignée.
+     */
+    public boolean isReservationCompletementAssignee(int reservationId, int totalReservationPassagers) {
+        return getTotalPassagersAssignesByReservationId(reservationId) >= totalReservationPassagers;
+    }
+
+    /**
+     * Retourne true s'il reste des passagers à assigner pour cette réservation.
+     */
+    public boolean hasPassagersRestants(int reservationId, int totalReservationPassagers) {
+        return getTotalPassagersAssignesByReservationId(reservationId) < totalReservationPassagers;
+    }
+
+    /**
+     * Retourne le nombre de passagers restants à assigner pour une réservation
+     * en utilisant la valeur source de Reservation.nbr_pers.
+     */
+    public int getPassagersRestantsByReservationId(int reservationId) {
+        Connection conn = connexion.getConnection();
+        if (conn == null) {
+            System.err.println("Connexion non établie");
+            return 0;
+        }
+
+        String sql = "SELECT (r.nbr_pers - COALESCE(SUM(a.nb_pers_assigne), 0)) AS restants " +
+                     "FROM Reservation r " +
+                     "LEFT JOIN Assignation a ON a.reservation_id = r.idReservation " +
+                     "WHERE r.idReservation = ? " +
+                     "GROUP BY r.idReservation, r.nbr_pers";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, reservationId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return Math.max(0, rs.getInt("restants"));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur lors du calcul des passagers restants : " + e.getMessage());
+        }
+        return 0;
+    }
+
+    /**
+     * Retourne true s'il reste des passagers à assigner (calcul basé sur Reservation.nbr_pers).
+     */
+    public boolean hasPassagersRestants(int reservationId) {
+        return getPassagersRestantsByReservationId(reservationId) > 0;
+    }
+
+    /**
      * Enregistre une nouvelle assignation
      */
     public void save(Assignation assignation) {
@@ -55,11 +153,16 @@ public class AssignationRepository {
             return;
         }
 
-        String sql = "INSERT INTO Assignation (reservation_id, vehicule_id, date_heure_planification) VALUES (?, ?, ?)";
+        String sql = "INSERT INTO Assignation (reservation_id, vehicule_id, date_heure_planification, nb_pers_assigne) VALUES (?, ?, ?, ?)";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, assignation.getReservationId());
             ps.setInt(2, assignation.getVehiculeId());
             ps.setTimestamp(3, java.sql.Timestamp.valueOf(assignation.getDateHeurePlanification()));
+            int nbPersAssigne = assignation.getNbPersAssigne();
+            if (nbPersAssigne <= 0) {
+                nbPersAssigne = getNbrPersReservation(assignation.getReservationId());
+            }
+            ps.setInt(4, nbPersAssigne);
             ps.executeUpdate();
             System.out.println("Assignation enregistrée avec succès");
         } catch (SQLException e) {
@@ -79,7 +182,7 @@ public class AssignationRepository {
             return assignations;
         }
 
-        String sql = "SELECT idAssignation, reservation_id, vehicule_id, date_heure_planification " +
+        String sql = "SELECT idAssignation, reservation_id, vehicule_id, date_heure_planification, nb_pers_assigne " +
                      "FROM Assignation WHERE DATE(date_heure_planification) = ?";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setDate(1, Date.valueOf(date));
@@ -89,7 +192,8 @@ public class AssignationRepository {
                     int reservationId = rs.getInt("reservation_id");
                     int vehiculeId = rs.getInt("vehicule_id");
                     LocalDateTime dateHeurePlanification = rs.getTimestamp("date_heure_planification").toLocalDateTime();
-                    assignations.add(new Assignation(idAssignation, reservationId, vehiculeId, dateHeurePlanification));
+                    int nbPersAssigne = rs.getInt("nb_pers_assigne");
+                    assignations.add(new Assignation(idAssignation, reservationId, vehiculeId, dateHeurePlanification, nbPersAssigne));
                 }
             }
         } catch (SQLException e) {
@@ -144,5 +248,25 @@ public class AssignationRepository {
         } catch (SQLException e) {
             System.err.println("Erreur lors de la suppression des assignations : " + e.getMessage());
         }
+    }
+
+    private int getNbrPersReservation(int reservationId) {
+        Connection conn = connexion.getConnection();
+        if (conn == null) {
+            return 0;
+        }
+
+        String sql = "SELECT nbr_pers FROM Reservation WHERE idReservation = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, reservationId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("nbr_pers");
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur lors de la lecture de la réservation : " + e.getMessage());
+        }
+        return 0;
     }
 }
