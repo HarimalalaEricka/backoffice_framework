@@ -255,7 +255,7 @@ public class PlanificationService {
             
             // RG8: Remplissage progressif des véhicules
             assignerAvecRemplissageProgressif(reservationsTriees, heureVol, date, tousVehicules, 
-                                             vehiculesHeureRetour, vehiculePlans, result);
+                                             vehiculesHeureRetour, vehiculePlans, result, tempsAttente);
         }
         
         // Ajouter tous les plans au résultat
@@ -288,11 +288,11 @@ public class PlanificationService {
      * 3. Fin tranche = début + tempsAttenteMinutes
      * 4. Si vol suivant <= fin tranche → même groupe
      * 5. Si vol suivant > fin tranche → nouveau groupe
-     * 6. Clé de la Map = heure du DERNIER vol du groupe (= heure de départ effective)
+     * 6. Clé de la Map = FIN DE TRANCHE (heure de départ effective pour réutilisation véhicules)
      *
      * @param reservations Liste des réservations (non triées)
      * @param tempsAttenteMinutes Durée de la tranche en minutes (ex: 30)
-     * @return Map où clé = heure de départ (dernier vol du groupe), valeur = liste des réservations
+     * @return Map où clé = heure de départ (fin de la tranche), valeur = liste des réservations
      */
     private Map<LocalDateTime, List<Reservation>> grouperParTrancheAttente(List<Reservation> reservations, int tempsAttenteMinutes) {
         // Trier par date_heure_arrivee ASC
@@ -326,9 +326,9 @@ public class PlanificationService {
                 groupeCourant.add(reservation);
             } else {
                 // Hors de la tranche → fermer groupe courant + nouveau groupe
-                LocalDateTime heureDepart = groupeCourant.get(groupeCourant.size() - 1).getDateHeureArrivee();
-                groupes.put(heureDepart, new ArrayList<>(groupeCourant));
-                logger.info("Sprint 5 - Groupe fermé : " + groupeCourant.size() + " réservations, départ = " + heureDepart);
+                // Utiliser FIN DE TRANCHE comme clé pour la réutilisation de véhicules
+                groupes.put(finTranche, new ArrayList<>(groupeCourant));
+                logger.info("Sprint 5 - Groupe fermé : " + groupeCourant.size() + " réservations, départ = " + finTranche);
 
                 // Nouveau groupe
                 groupeCourant = new ArrayList<>();
@@ -341,9 +341,9 @@ public class PlanificationService {
 
         // Ne pas oublier le dernier groupe
         if (!groupeCourant.isEmpty()) {
-            LocalDateTime heureDepart = groupeCourant.get(groupeCourant.size() - 1).getDateHeureArrivee();
-            groupes.put(heureDepart, groupeCourant);
-            logger.info("Sprint 5 - Dernier groupe fermé : " + groupeCourant.size() + " réservations, départ = " + heureDepart);
+            // Utiliser FIN DE TRANCHE comme clé pour la réutilisation de véhicules
+            groupes.put(finTranche, groupeCourant);
+            logger.info("Sprint 5 - Dernier groupe fermé : " + groupeCourant.size() + " réservations, départ = " + finTranche);
         }
 
         return groupes;
@@ -360,7 +360,7 @@ public class PlanificationService {
      * @param nbrPersonnes Nombre de personnes à transporter
      * @param vehiculesDisponibles Liste de tous les véhicules
      * @param vehiculesHeureRetour Map des heures de retour des véhicules
-     * @param heureVolActuel Heure du vol actuel
+     * @param heureVolActuel Heure du vol actuel (heure de départ du groupe)
      * @return Véhicule optimal ou null si aucun disponible
      */
     private Vehicule trouverVehiculeOptimal(int nbrPersonnes, 
@@ -386,7 +386,6 @@ public class PlanificationService {
                     // Véhicule déjà utilisé → vérifier s'il est déjà revenu
                     LocalDateTime heureRetour = vehiculesHeureRetour.get(vehiculeId);
                     boolean estRevenu = heureRetour.isBefore(heureVolActuel) || heureRetour.isEqual(heureVolActuel);
-                    // boolean estRevenu = false; // mbola atao hoe mbola tsy miverina loa izy fa mbola sprint 6 zany 
                     
                     if (estRevenu) {
                         logger.info("Véhicule " + v.getReference() + " réutilisable (retour: " + 
@@ -493,7 +492,8 @@ public class PlanificationService {
             List<Vehicule> tousVehicules,
             Map<Integer, LocalDateTime> vehiculesHeureRetour,
             Map<Integer, VehiculePlanDTO> vehiculePlans,
-            PlanificationResult result) {
+            PlanificationResult result,
+            int tempsAttente) {
         
         List<Reservation> reservationsNonAssignees = new ArrayList<>(reservations);
         
@@ -545,14 +545,30 @@ public class PlanificationService {
 
             // Sprint 5 : Calculer l'heure de départ spécifique à ce véhicule
             // = heure d'arrivée du DERNIER vol des réservations assignées à ce véhicule
-            LocalDateTime heureDepartVehicule = reservationsDuVehicule.stream()
+            LocalDateTime heureDernierVol = reservationsDuVehicule.stream()
                     .map(Reservation::getDateHeureArrivee)
                     .max(Comparator.naturalOrder())
                     .orElse(heureVol); // fallback sur heureVol si liste vide (ne devrait pas arriver)
 
-            logger.info("Sprint 5 - Véhicule " + vehicule.getReference() +
-                       " : heure départ = " + heureDepartVehicule +
-                       " (dernier vol des " + reservationsDuVehicule.size() + " réservations)");
+            // Récupérer l'heure de retour précédente du véhicule (si réutilisation activée)
+            LocalDateTime heureRetourPrecedente = vehiculesHeureRetour.get(vehicule.getIdVehicule());
+
+            LocalDateTime heureDepartVehicule;
+            if (heureRetourPrecedente != null && heureRetourPrecedente.isAfter(heureDernierVol)) {
+                // Cas 1 : heure_retour > heure_dernier_vol => heure_depart = heure_retour
+                heureDepartVehicule = heureRetourPrecedente;
+                logger.info("Sprint 6 - Véhicule " + vehicule.getReference() +
+                           " : heure retour précédente (" + heureRetourPrecedente +
+                           ") > heure dernier vol (" + heureDernierVol +
+                           ") => heure départ = " + heureDepartVehicule);
+            } else {
+                // Cas 2 : heure_retour <= heure_dernier_vol => heure_depart = heure_dernier_vol
+                heureDepartVehicule = heureDernierVol;
+                logger.info("Sprint 6 - Véhicule " + vehicule.getReference() +
+                           " : heure dernier vol (" + heureDernierVol +
+                           ") >= heure retour précédente (" + (heureRetourPrecedente != null ? heureRetourPrecedente : "null") +
+                           ") => heure départ = " + heureDepartVehicule);
+            }
 
             // Calculer le trajet complet avec l'heure de départ spécifique au véhicule
             TrajetComplet trajetComplet = trajetCalculator.calculerTrajetComplet(heureDepartVehicule, reservationsDuVehicule);

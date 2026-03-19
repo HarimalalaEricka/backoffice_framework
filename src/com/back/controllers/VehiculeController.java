@@ -19,7 +19,7 @@ public class VehiculeController {
 
     private static final String URL = "jdbc:postgresql://localhost:5432/gestion_ticket";
     private static final String USERNAME = "postgres";
-    private static final String PASSWORD = "postgres";
+    private static final String PASSWORD = "kanto";
 
     /**
      * Affiche le formulaire d'ajout de véhicule et la liste des véhicules

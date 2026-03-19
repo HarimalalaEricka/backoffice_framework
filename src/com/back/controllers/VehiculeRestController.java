@@ -19,7 +19,7 @@ public class VehiculeRestController {
     public VehiculeRestController() {
         String url = "jdbc:postgresql://localhost:5432/gestion_ticket";
         String user = "postgres";
-        String password = "postgres";
+        String password = "kanto";
         VehiculeRepository vehiculeRepo = new VehiculeRepository(url, user, password);
         this.service = new VehiculeService(vehiculeRepo);
     }
