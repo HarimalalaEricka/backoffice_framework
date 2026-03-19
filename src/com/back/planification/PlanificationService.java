@@ -385,8 +385,8 @@ public class PlanificationService {
                     
                     // Véhicule déjà utilisé → vérifier s'il est déjà revenu
                     LocalDateTime heureRetour = vehiculesHeureRetour.get(vehiculeId);
-                    // boolean estRevenu = heureRetour.isBefore(heureVolActuel) || heureRetour.isEqual(heureVolActuel);
-                    boolean estRevenu = false; // mbola atao hoe mbola tsy miverina loa izy fa mbola sprint 6 zany 
+                    boolean estRevenu = heureRetour.isBefore(heureVolActuel) || heureRetour.isEqual(heureVolActuel);
+                    // boolean estRevenu = false; // mbola atao hoe mbola tsy miverina loa izy fa mbola sprint 6 zany 
                     
                     if (estRevenu) {
                         logger.info("Véhicule " + v.getReference() + " réutilisable (retour: " + 
