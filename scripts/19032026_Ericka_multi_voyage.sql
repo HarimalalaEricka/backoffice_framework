@@ -13,8 +13,7 @@ INSERT INTO Distance (from_hotel_id, to_hotel_id, distance_km) VALUES
 (2, 1, 40);
 
 
-INSERT INTO Vehicule (idVehicule, reference, nbr_places, type_carburant) VALUES
-(1, 'VH-001-D', 8, 'D'),
+(1, 'VH-001-D', 8, 'D');
 (2, 'VH-002-ES', 8, 'ES');
 
 -- =================================================================
