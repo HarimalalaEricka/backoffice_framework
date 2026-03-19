@@ -1,8 +1,8 @@
 Team Lead :
-    ETU003366 / Vatosoa Wanda
-
-Developpeurs :
     ETU003324 / Harenkantou
+    
+Developpeurs :
+    ETU003366 / Vatosoa Wanda
     ETU003350 / Harimalala Ericka
 
 
@@ -72,7 +72,7 @@ Module : Planification
 
     TACHE 2 : Nouveau mode d’assignation Sprint 7 (split + traitement par reste + vehicules entames prioritaires)
         Responsable :
-            ETU003324
+            ETU003366
 
         Metier :
             - Dans chaque groupe (tranche), traiter les reservations par nbPassager DESC
@@ -163,7 +163,7 @@ Module : Planification
 
     TACHE 5 : Test Java / verification fonctionnelle Sprint 7
         Responsable :
-            ETU003324
+            ETU003350
 
         Metier :
             - Ajouter un test de non-regression + scenarios Sprint 7 qui verifie :
