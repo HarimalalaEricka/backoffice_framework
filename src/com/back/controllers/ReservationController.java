@@ -29,7 +29,7 @@ public class ReservationController {
         // Initialiser la connexion à la base de données
         String url = "jdbc:postgresql://localhost:5432/gestion_ticket";
         String username = "postgres";
-        String password = "postgres"; // Mot de passe correct
+        String password = "kanto"; // Mot de passe correct
         this.connexion = new Connexion(url, username, password);
     }
 

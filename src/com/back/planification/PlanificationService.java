@@ -35,7 +35,7 @@ public class PlanificationService {
     // Constantes DB
     private static final String DB_URL = "jdbc:postgresql://localhost:5432/gestion_ticket";
     private static final String DB_USER = "postgres";
-    private static final String DB_PASSWORD = "postgres";
+    private static final String DB_PASSWORD = "kanto";
 
     /**
      * Constructeur par défaut avec connexion DB standard
@@ -366,7 +366,8 @@ public class PlanificationService {
     private Vehicule trouverVehiculeOptimal(int nbrPersonnes, 
                                             List<Vehicule> vehiculesDisponibles, 
                                             Map<Integer, LocalDateTime> vehiculesHeureRetour,
-                                            LocalDateTime heureVolActuel) {
+                                            LocalDateTime heureVolActuel,
+                                            Map<Integer, VehiculePlanDTO> vehiculePlans) {
         
         List<Vehicule> candidats = vehiculesDisponibles.stream()
                 .filter(v -> {
@@ -400,19 +401,39 @@ public class PlanificationService {
             return null;
         }
         
-        // Trier par capacité croissante, puis par type de carburant (Diesel prioritaire)
+        // Sprint 6 - Trier par :
+        // 1) Capacité croissante (minimiser)
+        // 2) NOUVEAU : Moins de trajets effectués
+        // 3) Priorité Diesel
+        // 4) Random (implicite avec retour 0)
         candidats.sort((v1, v2) -> {
+            // Critère 1 : Capacité croissante
             int compareCapacite = Integer.compare(v1.getNbrPlaces(), v2.getNbrPlaces());
             if (compareCapacite != 0) {
                 return compareCapacite;
             }
             
+            // Critère 2 (NOUVEAU Sprint 6) : Moins de trajets effectués
+            int trajetsV1 = vehiculePlans.containsKey(v1.getIdVehicule()) ? 
+                            vehiculePlans.get(v1.getIdVehicule()).getNombreVoyages() : 0;
+            int trajetsV2 = vehiculePlans.containsKey(v2.getIdVehicule()) ? 
+                            vehiculePlans.get(v2.getIdVehicule()).getNombreVoyages() : 0;
+            int compareTrajets = Integer.compare(trajetsV1, trajetsV2);
+            if (compareTrajets != 0) {
+                logger.info("Sprint 6 - Tâche 2 : Sélection par critère 'moins de trajets' : " + 
+                           v1.getReference() + "(" + trajetsV1 + " trajets) vs " + 
+                           v2.getReference() + "(" + trajetsV2 + " trajets)");
+                return compareTrajets;
+            }
+            
+            // Critère 3 : Priorité Diesel
             boolean v1Diesel = "D".equals(v1.getTypeCarburant());
             boolean v2Diesel = "D".equals(v2.getTypeCarburant());
             
             if (v1Diesel && !v2Diesel) return -1;
             if (!v1Diesel && v2Diesel) return 1;
             
+            // Critère 4 : Random (return 0)
             return 0;
         });
         
@@ -482,7 +503,7 @@ public class PlanificationService {
             int nbrPersonnes = premiereReservation.getNbrPers();
             
             // Trouver un véhicule pour cette réservation
-            Vehicule vehicule = trouverVehiculeOptimal(nbrPersonnes, tousVehicules, vehiculesHeureRetour, heureVol);
+            Vehicule vehicule = trouverVehiculeOptimal(nbrPersonnes, tousVehicules, vehiculesHeureRetour, heureVol, vehiculePlans);
             
             if (vehicule == null) {
                 // Aucun véhicule disponible pour cette réservation

@@ -17,7 +17,7 @@ import java.util.Map;
 public class PlanificationController {
     private static final String DB_URL = "jdbc:postgresql://localhost:5432/gestion_ticket";
     private static final String DB_USER = "postgres";
-    private static final String DB_PASSWORD = "postgres";
+    private static final String DB_PASSWORD = "kanto";
 
     @HandleGet("/planification/form")
     public ModelView planificationForm() {
