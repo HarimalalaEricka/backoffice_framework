@@ -68,5 +68,5 @@ CREATE TABLE Assignation (
     reservation_id INTEGER NOT NULL REFERENCES Reservation(idReservation) ON DELETE CASCADE,
     vehicule_id INTEGER NOT NULL REFERENCES Vehicule(idVehicule) ON DELETE CASCADE,
     date_heure_planification TIMESTAMP NOT NULL,
-    UNIQUE (reservation_id)
+    nb_pers_assigne INTEGER NOT NULL CHECK (nb_pers_assigne > 0)
 );

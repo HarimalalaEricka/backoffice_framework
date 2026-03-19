@@ -9,6 +9,7 @@ public class Assignation {
     private int reservationId;
     private int vehiculeId;
     private LocalDateTime date_heure_planification;
+    private int nbPersAssigne;
 
     // Constructors
     public Assignation() {}
@@ -18,6 +19,15 @@ public class Assignation {
         this.reservationId = reservationId;
         this.vehiculeId = vehiculeId;
         this.date_heure_planification = dateHeurePlanification;
+        this.nbPersAssigne = 0;
+    }
+
+    public Assignation(int idAssignation, int reservationId, int vehiculeId, LocalDateTime dateHeurePlanification, int nbPersAssigne) {
+        this.idAssignation = idAssignation;
+        this.reservationId = reservationId;
+        this.vehiculeId = vehiculeId;
+        this.date_heure_planification = dateHeurePlanification;
+        this.nbPersAssigne = nbPersAssigne;
     }
 
     // Getters and Setters
@@ -51,5 +61,13 @@ public class Assignation {
 
     public void setDateHeurePlanification(LocalDateTime dateHeurePlanification) {
         this.date_heure_planification = dateHeurePlanification;
+    }
+
+    public int getNbPersAssigne() {
+        return nbPersAssigne;
+    }
+
+    public void setNbPersAssigne(int nbPersAssigne) {
+        this.nbPersAssigne = nbPersAssigne;
     }
 }

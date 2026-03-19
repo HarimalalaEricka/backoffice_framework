@@ -52,7 +52,7 @@ public class VehiculeRepository {
             return vehicules;
         }
 
-        String sql = "SELECT idVehicule, reference, nbr_places, type_carburant FROM Vehicule";
+        String sql = "SELECT idVehicule, reference, nbr_places, type_carburant FROM Vehicule ORDER BY nbr_places DESC, idVehicule ASC";
         try (PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {

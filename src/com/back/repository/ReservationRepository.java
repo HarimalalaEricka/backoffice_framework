@@ -98,8 +98,8 @@ public class ReservationRepository {
     }
 
     /**
-     * Récupère les réservations non assignées pour une date donnée
-     * dont l'heure d'arrivée est antérieure ou égale au cutoff fourni.
+        * Récupère les réservations ayant encore des passagers restants à assigner
+        * pour une date donnée et dont l'heure d'arrivée est <= cutoff.
      */
     public List<Reservation> findUnassignedByDateAndArrivalBefore(LocalDate date, java.time.LocalDateTime cutoff) {
         List<Reservation> reservations = new ArrayList<>();
@@ -109,11 +109,14 @@ public class ReservationRepository {
             return reservations;
         }
 
-        String sql = "SELECT r.idReservation, r.client_id, r.nbr_pers, r.date_heure_arrivee, r.hotel_id " +
+        String sql = "SELECT r.idReservation, r.client_id, (r.nbr_pers - COALESCE(SUM(a.nb_pers_assigne), 0)) AS nbr_pers_restants, " +
+                 "r.date_heure_arrivee, r.hotel_id " +
                      "FROM Reservation r " +
+                 "LEFT JOIN Assignation a ON a.reservation_id = r.idReservation " +
                      "WHERE DATE(r.date_heure_arrivee) = ? " +
                      "AND r.date_heure_arrivee <= ? " +
-                     "AND NOT EXISTS (SELECT 1 FROM Assignation a WHERE a.reservation_id = r.idReservation) " +
+                 "GROUP BY r.idReservation, r.client_id, r.nbr_pers, r.date_heure_arrivee, r.hotel_id " +
+                 "HAVING (r.nbr_pers - COALESCE(SUM(a.nb_pers_assigne), 0)) > 0 " +
                      "ORDER BY r.date_heure_arrivee ASC";
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -123,14 +126,14 @@ public class ReservationRepository {
                 while (rs.next()) {
                     int idReservation = rs.getInt("idReservation");
                     String clientId = rs.getString("client_id");
-                    int nbrPers = rs.getInt("nbr_pers");
+                    int nbrPers = rs.getInt("nbr_pers_restants");
                     java.time.LocalDateTime dateHeureArrivee = rs.getTimestamp("date_heure_arrivee").toLocalDateTime();
                     int hotelId = rs.getInt("hotel_id");
                     reservations.add(new Reservation(idReservation, clientId, nbrPers, dateHeureArrivee, hotelId));
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Erreur lors de la récupération des réservations non assignées : " + e.getMessage());
+            System.err.println("Erreur lors de la récupération des réservations avec passagers restants : " + e.getMessage());
         }
         return reservations;
     }

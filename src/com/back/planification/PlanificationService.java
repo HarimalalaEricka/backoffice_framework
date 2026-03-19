@@ -31,6 +31,7 @@ public class PlanificationService {
     private final TrajetCalculator trajetCalculator;
     private final HotelRepository hotelRepository;
     private final ParametreRepository parametreRepository;
+    private final Random random = new Random();
 
     // Constantes DB
     private static final String DB_URL = "jdbc:postgresql://localhost:5432/gestion_ticket";
@@ -80,14 +81,11 @@ public class PlanificationService {
         int count = 0;
         for (Reservation r : candidats) {
             try {
-                if (assignationRepository.existsByReservationId(r.getIdReservation())) {
-                    continue; // déjà assignée entre-temps
-                }
-
                 Assignation a = new Assignation();
                 a.setReservationId(r.getIdReservation());
                 a.setVehiculeId(vehiculeId);
                 a.setDateHeurePlanification(LocalDateTime.now());
+                a.setNbPersAssigne(r.getNbrPers());
                 assignationRepository.save(a);
                 count++;
                 logger.info("Assignation auto : reservation " + r.getIdReservation() + " -> vehicule " + vehiculeId);
@@ -206,7 +204,7 @@ public class PlanificationService {
             
             // Filtrer les réservations déjà assignées
             List<Reservation> reservationsAAssigner = groupe.stream()
-                    .filter(r -> !assignationRepository.existsByReservationId(r.getIdReservation()))
+                    .filter(r -> assignationRepository.hasPassagersRestants(r.getIdReservation()))
                     .collect(Collectors.toList());
             
             if (reservationsAAssigner.isEmpty()) {
@@ -350,103 +348,18 @@ public class PlanificationService {
     }
 
     /**
-     * Trouve le véhicule optimal selon les règles métier :
-     * 1. Capacité >= nbrPersonnes
-     * 2. Véhicule jamais utilisé OU déjà revenu à l'aéroport (heureRetour <= heureVolActuel)
-     * 3. Capacité la plus proche du besoin
-     * 4. Si égalité de capacité → Diesel ('D') prioritaire
-     * 5. Sinon → Random
-     * 
-     * @param nbrPersonnes Nombre de personnes à transporter
-     * @param vehiculesDisponibles Liste de tous les véhicules
-     * @param vehiculesHeureRetour Map des heures de retour des véhicules
-     * @param heureVolActuel Heure du vol actuel (heure de départ du groupe)
-     * @return Véhicule optimal ou null si aucun disponible
+     * Enregistre une assignation partielle/complète pour une réservation vers un véhicule.
      */
-    private Vehicule trouverVehiculeOptimal(int nbrPersonnes, 
-                                            List<Vehicule> vehiculesDisponibles, 
-                                            Map<Integer, LocalDateTime> vehiculesHeureRetour,
-                                            LocalDateTime heureVolActuel,
-                                            Map<Integer, VehiculePlanDTO> vehiculePlans) {
-        
-        List<Vehicule> candidats = vehiculesDisponibles.stream()
-                .filter(v -> {
-                    // Vérifier la capacité
-                    if (v.getNbrPlaces() < nbrPersonnes) {
-                        return false;
-                    }
-                    
-                    // Vérifier la disponibilité (Sprint 3 - Réutilisation)
-                    Integer vehiculeId = v.getIdVehicule();
-                    if (!vehiculesHeureRetour.containsKey(vehiculeId)) {
-                        // Véhicule jamais utilisé → disponible
-                        return true;
-                    }
-                    
-                    // Véhicule déjà utilisé → vérifier s'il est déjà revenu
-                    LocalDateTime heureRetour = vehiculesHeureRetour.get(vehiculeId);
-                    boolean estRevenu = heureRetour.isBefore(heureVolActuel) || heureRetour.isEqual(heureVolActuel);
-                    
-                    if (estRevenu) {
-                        logger.info("Véhicule " + v.getReference() + " réutilisable (retour: " + 
-                                   heureRetour + ", vol actuel: " + heureVolActuel + ")");
-                    }
-                    
-                    return estRevenu;
-                })
-                .collect(Collectors.toList());
-        
-        if (candidats.isEmpty()) {
-            return null;
-        }
-        
-        // Sprint 6 - Trier par :
-        // 1) Capacité croissante (minimiser)
-        // 2) NOUVEAU : Moins de trajets effectués
-        // 3) Priorité Diesel
-        // 4) Random (implicite avec retour 0)
-        candidats.sort((v1, v2) -> {
-            // Critère 1 : Capacité croissante
-            int compareCapacite = Integer.compare(v1.getNbrPlaces(), v2.getNbrPlaces());
-            if (compareCapacite != 0) {
-                return compareCapacite;
-            }
-            
-            // Critère 2 (NOUVEAU Sprint 6) : Moins de trajets effectués
-            int trajetsV1 = vehiculePlans.containsKey(v1.getIdVehicule()) ? 
-                            vehiculePlans.get(v1.getIdVehicule()).getNombreVoyages() : 0;
-            int trajetsV2 = vehiculePlans.containsKey(v2.getIdVehicule()) ? 
-                            vehiculePlans.get(v2.getIdVehicule()).getNombreVoyages() : 0;
-            int compareTrajets = Integer.compare(trajetsV1, trajetsV2);
-            if (compareTrajets != 0) {
-                logger.info("Sprint 6 - Tâche 2 : Sélection par critère 'moins de trajets' : " + 
-                           v1.getReference() + "(" + trajetsV1 + " trajets) vs " + 
-                           v2.getReference() + "(" + trajetsV2 + " trajets)");
-                return compareTrajets;
-            }
-            
-            // Critère 3 : Priorité Diesel
-            boolean v1Diesel = "D".equals(v1.getTypeCarburant());
-            boolean v2Diesel = "D".equals(v2.getTypeCarburant());
-            
-            if (v1Diesel && !v2Diesel) return -1;
-            if (!v1Diesel && v2Diesel) return 1;
-            
-            // Critère 4 : Random (return 0)
-            return 0;
-        });
-        
-        return candidats.get(0);
-    }
-
-    /**
-     * Enregistre une assignation pour une réservation vers un véhicule.
-     */
-    private void enregistrerAssignation(Reservation reservation, Vehicule vehicule, LocalDate date) {
+    private void enregistrerAssignation(Reservation reservation, Vehicule vehicule, LocalDate date, int nbPassagersAssignes) {
         LocalDateTime datePlanification = date.atStartOfDay();
         
-        if (assignationRepository.existsByReservationId(reservation.getIdReservation())) {
-            logger.warning("Réservation " + reservation.getIdReservation() + " déjà assignée, ignorée.");
+        if (!assignationRepository.hasPassagersRestants(reservation.getIdReservation())) {
+            logger.warning("Réservation " + reservation.getIdReservation() + " complètement assignée, ignorée.");
+            return;
+        }
+
+        if (nbPassagersAssignes <= 0) {
+            logger.warning("Aucun passager à assigner pour la réservation " + reservation.getIdReservation());
             return;
         }
         
@@ -454,10 +367,12 @@ public class PlanificationService {
         assignation.setReservationId(reservation.getIdReservation());
         assignation.setVehiculeId(vehicule.getIdVehicule());
         assignation.setDateHeurePlanification(datePlanification);
+        assignation.setNbPersAssigne(nbPassagersAssignes);
         
         assignationRepository.save(assignation);
         logger.info("Assignation créée : Réservation " + reservation.getIdReservation() + 
-                   " → Véhicule " + vehicule.getReference());
+                   " → Véhicule " + vehicule.getReference() +
+                   " (" + nbPassagersAssignes + " passager(s))");
     }
 
     /**
@@ -495,113 +410,251 @@ public class PlanificationService {
             PlanificationResult result,
             int tempsAttente) {
         
-        List<Reservation> reservationsNonAssignees = new ArrayList<>(reservations);
-        
-        while (!reservationsNonAssignees.isEmpty()) {
-            // Prendre la première réservation (la plus grande)
-            Reservation premiereReservation = reservationsNonAssignees.get(0);
-            int nbrPersonnes = premiereReservation.getNbrPers();
-            
-            // Trouver un véhicule pour cette réservation
-            Vehicule vehicule = trouverVehiculeOptimal(nbrPersonnes, tousVehicules, vehiculesHeureRetour, heureVol, vehiculePlans);
-            
-            if (vehicule == null) {
-                // Aucun véhicule disponible pour cette réservation
-                logger.warning("Aucun véhicule disponible pour la réservation " + 
-                              premiereReservation.getIdReservation() + " (" + nbrPersonnes + " personnes)");
-                result.addReservationNonAssignee(premiereReservation);
-                reservationsNonAssignees.remove(0);
-                continue;
-            }
-            
-            // RG8: Remplir le véhicule avec d'autres réservations du même vol
-            List<Reservation> reservationsDuVehicule = new ArrayList<>();
-            reservationsDuVehicule.add(premiereReservation);
-            int capaciteRestante = vehicule.getNbrPlaces() - nbrPersonnes;
-            
-            logger.info("Véhicule " + vehicule.getReference() + " sélectionné (capacité: " + 
-                       vehicule.getNbrPlaces() + "), capacité restante: " + capaciteRestante);
-            
-            // Essayer d'ajouter d'autres réservations tant que la capacité le permet
-            Iterator<Reservation> iterator = reservationsNonAssignees.listIterator(1);
-            while (iterator.hasNext() && capaciteRestante > 0) {
-                Reservation autreReservation = iterator.next();
-                if (autreReservation.getNbrPers() <= capaciteRestante) {
-                    reservationsDuVehicule.add(autreReservation);
-                    capaciteRestante -= autreReservation.getNbrPers();
-                    iterator.remove();
-                    logger.info("  + Ajout réservation " + autreReservation.getIdReservation() + 
-                               " (" + autreReservation.getNbrPers() + " pers), capacité restante: " + capaciteRestante);
+        List<Reservation> reservationsTriees = reservations.stream()
+                .sorted((r1, r2) -> Integer.compare(r2.getNbrPers(), r1.getNbrPers()))
+                .collect(Collectors.toList());
+
+        Map<Integer, EtatVehiculeGroupe> etatsGroupe = new LinkedHashMap<>();
+
+        for (Reservation reservation : reservationsTriees) {
+            int passagersRestants = assignationRepository.getPassagersRestantsByReservationId(reservation.getIdReservation());
+
+            while (passagersRestants > 0) {
+                // Sprint 7 : priorité aux véhicules entamés du groupe courant
+                EtatVehiculeGroupe vehiculeEntame = choisirVehiculeEntame(etatsGroupe.values(), passagersRestants, vehiculePlans);
+                if (vehiculeEntame != null) {
+                    int nbAssignes = Math.min(passagersRestants, vehiculeEntame.capaciteRestante);
+                    vehiculeEntame.ajouterReservation(reservation, nbAssignes);
+                    enregistrerAssignation(reservation, vehiculeEntame.vehicule, date, nbAssignes);
+                    passagersRestants -= nbAssignes;
+                    continue;
                 }
-            }
-            
-            // Retirer la première réservation de la liste
-            reservationsNonAssignees.remove(premiereReservation);
 
-            // Enregistrer les assignations
-            for (Reservation reservation : reservationsDuVehicule) {
-                enregistrerAssignation(reservation, vehicule, date);
+                List<Vehicule> vehiculesDisponibles = tousVehicules.stream()
+                        .filter(v -> !etatsGroupe.containsKey(v.getIdVehicule()))
+                        .filter(v -> estVehiculeDisponible(v, vehiculesHeureRetour, heureVol))
+                        .collect(Collectors.toList());
+
+                if (vehiculesDisponibles.isEmpty()) {
+                    break;
+                }
+
+                Vehicule vehiculeChoisi = choisirVehiculePourBesoin(passagersRestants, vehiculesDisponibles, vehiculePlans);
+                if (vehiculeChoisi == null) {
+                    break;
+                }
+
+                EtatVehiculeGroupe etat = new EtatVehiculeGroupe(vehiculeChoisi);
+                etatsGroupe.put(vehiculeChoisi.getIdVehicule(), etat);
+
+                int nbAssignes = Math.min(passagersRestants, vehiculeChoisi.getNbrPlaces());
+                etat.ajouterReservation(reservation, nbAssignes);
+                enregistrerAssignation(reservation, vehiculeChoisi, date, nbAssignes);
+                passagersRestants -= nbAssignes;
             }
 
-            // Sprint 5 : Calculer l'heure de départ spécifique à ce véhicule
-            // = heure d'arrivée du DERNIER vol des réservations assignées à ce véhicule
-            LocalDateTime heureDernierVol = reservationsDuVehicule.stream()
+            if (passagersRestants > 0) {
+                Reservation reste = new Reservation(
+                        reservation.getIdReservation(),
+                        reservation.getClientId(),
+                        passagersRestants,
+                        reservation.getDateHeureArrivee(),
+                        reservation.getHotelId());
+                result.addReservationNonAssignee(reste);
+            }
+        }
+
+        // Finaliser les voyages du groupe
+        for (EtatVehiculeGroupe etat : etatsGroupe.values()) {
+            List<Reservation> reservationsVoyage = new ArrayList<>(etat.reservationsVoyage);
+            LocalDateTime heureDernierVol = reservationsVoyage.stream()
                     .map(Reservation::getDateHeureArrivee)
                     .max(Comparator.naturalOrder())
-                    .orElse(heureVol); // fallback sur heureVol si liste vide (ne devrait pas arriver)
+                    .orElse(heureVol);
 
-            // Récupérer l'heure de retour précédente du véhicule (si réutilisation activée)
-            LocalDateTime heureRetourPrecedente = vehiculesHeureRetour.get(vehicule.getIdVehicule());
-
+            LocalDateTime heureRetourPrecedente = vehiculesHeureRetour.get(etat.vehicule.getIdVehicule());
             LocalDateTime heureDepartVehicule;
+
             if (heureRetourPrecedente != null && heureRetourPrecedente.isAfter(heureDernierVol)) {
-                // Cas 1 : heure_retour > heure_dernier_vol => heure_depart = heure_retour
                 heureDepartVehicule = heureRetourPrecedente;
-                logger.info("Sprint 6 - Véhicule " + vehicule.getReference() +
-                           " : heure retour précédente (" + heureRetourPrecedente +
-                           ") > heure dernier vol (" + heureDernierVol +
-                           ") => heure départ = " + heureDepartVehicule);
             } else {
-                // Cas 2 : heure_retour <= heure_dernier_vol => heure_depart = heure_dernier_vol
                 heureDepartVehicule = heureDernierVol;
-                logger.info("Sprint 6 - Véhicule " + vehicule.getReference() +
-                           " : heure dernier vol (" + heureDernierVol +
-                           ") >= heure retour précédente (" + (heureRetourPrecedente != null ? heureRetourPrecedente : "null") +
-                           ") => heure départ = " + heureDepartVehicule);
             }
 
-            // Calculer le trajet complet avec l'heure de départ spécifique au véhicule
-            TrajetComplet trajetComplet = trajetCalculator.calculerTrajetComplet(heureDepartVehicule, reservationsDuVehicule);
+            TrajetComplet trajetComplet = trajetCalculator.calculerTrajetComplet(heureDepartVehicule, reservationsVoyage);
+            vehiculesHeureRetour.put(etat.vehicule.getIdVehicule(), trajetComplet.getHeureRetour());
 
-            // Stocker l'heure de retour du véhicule
-            vehiculesHeureRetour.put(vehicule.getIdVehicule(), trajetComplet.getHeureRetour());
-
-            // Ajouter au résultat
-            int vehiculeId = vehicule.getIdVehicule();
             VehiculePlanDTO vehiculePlan;
-            if (!vehiculePlans.containsKey(vehiculeId)) {
-                vehiculePlan = new VehiculePlanDTO(vehicule, new ArrayList<>());
-                vehiculePlans.put(vehiculeId, vehiculePlan);
+            if (!vehiculePlans.containsKey(etat.vehicule.getIdVehicule())) {
+                vehiculePlan = new VehiculePlanDTO(etat.vehicule, new ArrayList<>());
+                vehiculePlans.put(etat.vehicule.getIdVehicule(), vehiculePlan);
             } else {
-                vehiculePlan = vehiculePlans.get(vehiculeId);
+                vehiculePlan = vehiculePlans.get(etat.vehicule.getIdVehicule());
             }
 
-            // Créer un nouveau voyage avec l'heure de départ spécifique au véhicule
             int numeroVoyage = vehiculePlan.getNombreVoyages() + 1;
             VoyageDTO voyage = new VoyageDTO(
-                numeroVoyage,
-                heureDepartVehicule,
-                trajetComplet.getHeureRetour(),
-                trajetComplet.getDistanceTotale(),
-                new ArrayList<>(reservationsDuVehicule),
-                trajetComplet.getDetailsTrajet()
+                    numeroVoyage,
+                    heureDepartVehicule,
+                    trajetComplet.getHeureRetour(),
+                    trajetComplet.getDistanceTotale(),
+                    reservationsVoyage,
+                    trajetComplet.getDetailsTrajet()
             );
-            
+
+            voyage.setPassagersAssignesParReservation(new LinkedHashMap<>(etat.passagersAssignesParReservation));
             vehiculePlan.addVoyage(voyage);
-            vehiculePlan.getReservations().addAll(reservationsDuVehicule);
-            
-            logger.info("Voyage " + numeroVoyage + " créé avec " + reservationsDuVehicule.size() + 
-                       " réservations (" + (vehicule.getNbrPlaces() - capaciteRestante) + " personnes)");
+            vehiculePlan.getReservations().addAll(reservationsVoyage);
+        }
+    }
+
+    private boolean estVehiculeDisponible(Vehicule vehicule,
+                                          Map<Integer, LocalDateTime> vehiculesHeureRetour,
+                                          LocalDateTime heureVolActuel) {
+        Integer vehiculeId = vehicule.getIdVehicule();
+        if (!vehiculesHeureRetour.containsKey(vehiculeId)) {
+            return true;
+        }
+
+        LocalDateTime heureRetour = vehiculesHeureRetour.get(vehiculeId);
+        return heureRetour.isBefore(heureVolActuel) || heureRetour.isEqual(heureVolActuel);
+    }
+
+    private Vehicule choisirVehiculePourBesoin(int passagersRestants,
+                                               List<Vehicule> vehiculesDisponibles,
+                                               Map<Integer, VehiculePlanDTO> vehiculePlans) {
+        List<Vehicule> capables = vehiculesDisponibles.stream()
+                .filter(v -> v.getNbrPlaces() >= passagersRestants)
+                .collect(Collectors.toList());
+
+        if (!capables.isEmpty()) {
+            return choisirAvecTieBreakers(capables, passagersRestants, true, vehiculePlans);
+        }
+
+        List<Vehicule> splitCandidats = vehiculesDisponibles.stream()
+                .filter(v -> v.getNbrPlaces() > 0)
+                .collect(Collectors.toList());
+
+        if (splitCandidats.isEmpty()) {
+            return null;
+        }
+
+        return choisirAvecTieBreakers(splitCandidats, passagersRestants, false, vehiculePlans);
+    }
+
+    private Vehicule choisirAvecTieBreakers(List<Vehicule> candidats,
+                                            int passagersRestants,
+                                            boolean modeCapable,
+                                            Map<Integer, VehiculePlanDTO> vehiculePlans) {
+        if (candidats == null || candidats.isEmpty()) {
+            return null;
+        }
+
+        int meilleurDelta = candidats.stream()
+                .mapToInt(v -> modeCapable ? (v.getNbrPlaces() - passagersRestants) : (passagersRestants - v.getNbrPlaces()))
+                .filter(delta -> delta >= 0)
+                .min()
+                .orElse(Integer.MAX_VALUE);
+
+        List<Vehicule> plusProches = candidats.stream()
+                .filter(v -> {
+                    int delta = modeCapable ? (v.getNbrPlaces() - passagersRestants) : (passagersRestants - v.getNbrPlaces());
+                    return delta == meilleurDelta;
+                })
+                .collect(Collectors.toList());
+
+        int minTrajets = plusProches.stream()
+                .mapToInt(v -> vehiculePlans.containsKey(v.getIdVehicule())
+                        ? vehiculePlans.get(v.getIdVehicule()).getNombreVoyages()
+                        : 0)
+                .min()
+                .orElse(0);
+
+        List<Vehicule> moinsTrajets = plusProches.stream()
+                .filter(v -> {
+                    int trajets = vehiculePlans.containsKey(v.getIdVehicule())
+                            ? vehiculePlans.get(v.getIdVehicule()).getNombreVoyages()
+                            : 0;
+                    return trajets == minTrajets;
+                })
+                .collect(Collectors.toList());
+
+        List<Vehicule> diesels = moinsTrajets.stream()
+                .filter(v -> "D".equals(v.getTypeCarburant()))
+                .collect(Collectors.toList());
+
+        List<Vehicule> finalistes = !diesels.isEmpty() ? diesels : moinsTrajets;
+        return finalistes.get(random.nextInt(finalistes.size()));
+    }
+
+    private EtatVehiculeGroupe choisirVehiculeEntame(Collection<EtatVehiculeGroupe> etats,
+                                                     int passagersRestants,
+                                                     Map<Integer, VehiculePlanDTO> vehiculePlans) {
+        List<EtatVehiculeGroupe> disponibles = etats.stream()
+                .filter(e -> e.capaciteRestante > 0)
+                .collect(Collectors.toList());
+
+        if (disponibles.isEmpty()) {
+            return null;
+        }
+
+        int meilleurDelta = disponibles.stream()
+                .mapToInt(e -> Math.abs(e.capaciteRestante - passagersRestants))
+                .min()
+                .orElse(Integer.MAX_VALUE);
+
+        List<EtatVehiculeGroupe> plusProches = disponibles.stream()
+                .filter(e -> Math.abs(e.capaciteRestante - passagersRestants) == meilleurDelta)
+                .collect(Collectors.toList());
+
+        int minTrajets = plusProches.stream()
+                .mapToInt(e -> vehiculePlans.containsKey(e.vehicule.getIdVehicule())
+                        ? vehiculePlans.get(e.vehicule.getIdVehicule()).getNombreVoyages()
+                        : 0)
+                .min()
+                .orElse(0);
+
+        List<EtatVehiculeGroupe> moinsTrajets = plusProches.stream()
+                .filter(e -> {
+                    int trajets = vehiculePlans.containsKey(e.vehicule.getIdVehicule())
+                            ? vehiculePlans.get(e.vehicule.getIdVehicule()).getNombreVoyages()
+                            : 0;
+                    return trajets == minTrajets;
+                })
+                .collect(Collectors.toList());
+
+        List<EtatVehiculeGroupe> diesels = moinsTrajets.stream()
+                .filter(e -> "D".equals(e.vehicule.getTypeCarburant()))
+                .collect(Collectors.toList());
+
+        List<EtatVehiculeGroupe> finalistes = !diesels.isEmpty() ? diesels : moinsTrajets;
+        return finalistes.get(random.nextInt(finalistes.size()));
+    }
+
+    private static class EtatVehiculeGroupe {
+        private final Vehicule vehicule;
+        private int capaciteRestante;
+        private final List<Reservation> reservationsVoyage;
+        private final Map<Integer, Integer> passagersAssignesParReservation;
+
+        private EtatVehiculeGroupe(Vehicule vehicule) {
+            this.vehicule = vehicule;
+            this.capaciteRestante = vehicule.getNbrPlaces();
+            this.reservationsVoyage = new ArrayList<>();
+            this.passagersAssignesParReservation = new LinkedHashMap<>();
+        }
+
+        private void ajouterReservation(Reservation reservation, int nbPassagers) {
+            if (nbPassagers <= 0) {
+                return;
+            }
+
+            if (!passagersAssignesParReservation.containsKey(reservation.getIdReservation())) {
+                reservationsVoyage.add(reservation);
+            }
+
+            passagersAssignesParReservation.merge(reservation.getIdReservation(), nbPassagers, Integer::sum);
+            capaciteRestante -= nbPassagers;
         }
     }
 }

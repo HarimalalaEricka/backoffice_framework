@@ -202,10 +202,29 @@
                     </thead>
                     <tbody>
                         <% for (Reservation r : vp.getReservations()) { %>
+                        <%
+                            int nbPersonnesAffiche = r.getNbrPers();
+                            boolean splitTrouve = false;
+                            int sommeAssigneeVehicule = 0;
+
+                            if (vp.getVoyages() != null && !vp.getVoyages().isEmpty()) {
+                                for (VoyageDTO vdg : vp.getVoyages()) {
+                                    if (vdg.getPassagersAssignesParReservation() != null
+                                            && vdg.getPassagersAssignesParReservation().containsKey(r.getIdReservation())) {
+                                        sommeAssigneeVehicule += vdg.getPassagersAssignesParReservation().get(r.getIdReservation());
+                                        splitTrouve = true;
+                                    }
+                                }
+                            }
+
+                            if (splitTrouve) {
+                                nbPersonnesAffiche = sommeAssigneeVehicule;
+                            }
+                        %>
                         <tr>
                             <td><%= r.getIdReservation() %></td>
                             <td><%= r.getClientId() %></td>
-                            <td><%= r.getNbrPers() %></td>
+                            <td><%= nbPersonnesAffiche %></td>
                             <td><%= r.getDateHeureArrivee() %></td>
                             <td><%= r.getHotelId() %></td>
                         </tr>
@@ -259,8 +278,9 @@
                             <div style="margin-bottom: 10px;">
                                 <strong>👥 Réservations :</strong>
                                 <% for (Reservation r : voyage.getReservations()) { %>
+                                    <% int nbAssigne = voyage.getPassagersAssignesPourReservation(r); %>
                                     <span style="background-color: white; padding: 3px 8px; border-radius: 3px; margin-right: 5px; display: inline-block; margin-bottom: 3px;">
-                                        <%= r.getClientId() %> (<%= r.getNbrPers() %> pers.)
+                                        <%= r.getClientId() %> (<%= nbAssigne %> pers. assignée<%= nbAssigne > 1 ? "s" : "" %><%= nbAssigne < r.getNbrPers() ? " / split" : "" %>)
                                     </span>
                                 <% } %>
                             </div>
