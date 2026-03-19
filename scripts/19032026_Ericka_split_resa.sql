@@ -25,6 +25,6 @@ INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers,
 -- Resultat attendu :
 /*
     V1 : r1 (6 pers) + r2 (2 pers) = 8 pers -> complet
-    V2 : r2 (2 pers restants) + r3 (3 pers) = 5 pers -> complet
+    V2 : r2 (2 pers restants) + r3 (1 pers) = 3 pers -> complet
     Non assigné : r3 (2 pers) -> pas de véhicule dispo 
 */

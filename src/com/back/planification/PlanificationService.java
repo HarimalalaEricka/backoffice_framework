@@ -112,7 +112,7 @@ public class PlanificationService {
         logger.info("Début de la planification pour la date : " + date);
         
         // Sprint 4 - Réinitialisation automatique avant recalcul
-        reinitialiserAssignations(date);
+        // reinitialiserAssignations(date);
         
         PlanificationResult result = new PlanificationResult();
         
@@ -138,6 +138,7 @@ public class PlanificationService {
         // Étape 3 : Map pour suivre l'heure de retour des véhicules (Sprint 3 - Réutilisation)
         // Clé: idVehicule, Valeur: heure de retour à l'aéroport
         Map<Integer, LocalDateTime> vehiculesHeureRetour = new HashMap<>();
+        initialiserOccupationVehiculesDepuisAssignationsExistantes(date, reservations, vehiculesHeureRetour);
         logger.info("Réutilisation des véhicules activée (Sprint 3)");
 
         // Sprint 5 : Récupérer le temps d'attente depuis les paramètres
@@ -265,6 +266,65 @@ public class PlanificationService {
                    ", Réservations non assignées: " + result.getNombreReservationsNonAssignees());
         
         return result;
+    }
+
+    /**
+     * Initialise l'occupation des véhicules à partir des assignations déjà présentes en base
+     * pour la date donnée. Permet de prendre en compte une simulation préalable d'assignation
+     * avant de planifier les nouvelles réservations.
+     */
+    private void initialiserOccupationVehiculesDepuisAssignationsExistantes(
+            LocalDate date,
+            List<Reservation> reservationsDuJour,
+            Map<Integer, LocalDateTime> vehiculesHeureRetour) {
+        List<Assignation> assignationsExistantes = assignationRepository.findByDate(date);
+        if (assignationsExistantes.isEmpty()) {
+            return;
+        }
+
+        Map<Integer, Reservation> reservationById = reservationsDuJour.stream()
+                .collect(Collectors.toMap(Reservation::getIdReservation, r -> r, (r1, r2) -> r1));
+
+        Map<Integer, List<Reservation>> reservationsParVehicule = new HashMap<>();
+        for (Assignation assignation : assignationsExistantes) {
+            Reservation reservation = reservationById.get(assignation.getReservationId());
+            if (reservation == null) {
+                continue;
+            }
+
+            List<Reservation> reservationsVehicule = reservationsParVehicule
+                    .computeIfAbsent(assignation.getVehiculeId(), key -> new ArrayList<>());
+
+            boolean dejaPresente = reservationsVehicule.stream()
+                    .anyMatch(r -> r.getIdReservation() == reservation.getIdReservation());
+            if (!dejaPresente) {
+                reservationsVehicule.add(reservation);
+            }
+        }
+
+        for (Map.Entry<Integer, List<Reservation>> entry : reservationsParVehicule.entrySet()) {
+            int vehiculeId = entry.getKey();
+            List<Reservation> reservationsVehicule = entry.getValue();
+
+            if (reservationsVehicule.isEmpty()) {
+                continue;
+            }
+
+            LocalDateTime heureDepart = reservationsVehicule.stream()
+                    .map(Reservation::getDateHeureArrivee)
+                    .max(Comparator.naturalOrder())
+                    .orElse(date.atStartOfDay());
+
+            TrajetComplet trajetComplet = trajetCalculator.calculerTrajetComplet(heureDepart, reservationsVehicule);
+            LocalDateTime heureRetour = trajetComplet.getHeureRetour();
+
+            LocalDateTime ancienneHeureRetour = vehiculesHeureRetour.get(vehiculeId);
+            if (ancienneHeureRetour == null || heureRetour.isAfter(ancienneHeureRetour)) {
+                vehiculesHeureRetour.put(vehiculeId, heureRetour);
+            }
+
+            logger.info("Véhicule " + vehiculeId + " occupé par assignations existantes jusqu'à " + heureRetour);
+        }
     }
 
     /**
@@ -453,15 +513,7 @@ public class PlanificationService {
                 passagersRestants -= nbAssignes;
             }
 
-            if (passagersRestants > 0) {
-                Reservation reste = new Reservation(
-                        reservation.getIdReservation(),
-                        reservation.getClientId(),
-                        passagersRestants,
-                        reservation.getDateHeureArrivee(),
-                        reservation.getHotelId());
-                result.addReservationNonAssignee(reste);
-            }
+            mettreAJourReservationNonAssignee(result, reservation, passagersRestants);
         }
 
         // Finaliser les voyages du groupe
@@ -506,6 +558,29 @@ public class PlanificationService {
             vehiculePlan.addVoyage(voyage);
             vehiculePlan.getReservations().addAll(reservationsVoyage);
         }
+    }
+
+    private void mettreAJourReservationNonAssignee(PlanificationResult result,
+                                                   Reservation reservation,
+                                                   int passagersRestants) {
+        if (result.getReservationsNonAssignees() == null) {
+            result.setReservationsNonAssignees(new ArrayList<>());
+        }
+
+        List<Reservation> nonAssignees = result.getReservationsNonAssignees();
+        nonAssignees.removeIf(r -> r.getIdReservation() == reservation.getIdReservation());
+
+        if (passagersRestants <= 0) {
+            return;
+        }
+
+        Reservation reste = new Reservation(
+                reservation.getIdReservation(),
+                reservation.getClientId(),
+                passagersRestants,
+                reservation.getDateHeureArrivee(),
+                reservation.getHotelId());
+        nonAssignees.add(reste);
     }
 
     private boolean estVehiculeDisponible(Vehicule vehicule,
