@@ -1,0 +1,73 @@
+Team Lead :
+    ETU003350 / Harimalala Ericka
+
+Developpeurs :
+    ETU003324 / Harenkantou
+    ETU003366 / Vatosoa Wanda
+
+Apres Integration, Tache 2 est prise en compte en premiere
+
+
+BACKOFFICE
+Module : Reservation
+
+    TACHE 1 : Priorisation des reservations non assignees dans le prochain groupe
+        Responsable :
+            ETU003324
+        Metier :
+            - Identifier toutes les reservations non assignees 
+            - Les assigner au groupe d'intervalle suivante
+                    Exemple :
+                        Reservations non assignees :
+                            06:00
+                            06:45
+                            06:50
+                        Nouveau groupe : 8:00 - 8:30 ( donc 8:00 heure d'arrivee du nouvelle reservation)
+                            08:00
+                            08:10
+                            08:15
+                        Resultat :
+                            Reservations non assignees seront assignees en premiers (priorite)
+                                ordre d'Assignation:
+                                    06:00
+                                    06:45
+                                    06:50
+                                    08:00
+                                    08:10
+                                    08:15
+
+        Regle de gestion :
+            - Les Reservations non assignees seront regroupees dans le Nouveau groupe et assignees en premier
+
+
+    TACHE 2 : Assignation des reservations non assignees quand il y a vehicules disponibles
+        Responsable :
+            ETU003366
+
+        Metier :
+            - Identifier les reservations non assignees
+            - Verifier la disponibilite des vehicules definit par le retour a l'aeroport
+            - Creer comme un groupe pour ces reservations non assignees a cet heure d'arrivee
+            - Assigner les reservations avec les vehicules dispo peu importe l'heure 
+
+        Regles de gestion :
+            - capacite voiture < nombre de personne -> la voiture part 
+                Exemple: 
+                    capacite voiture = 5
+                    nombre de personnes = 8 
+                    -> Assignation de 5 personnes et la voiture part
+            - capacite voiture > nombre de personne -> consideration du temps d'attente
+                * si il y a un autre vol dans le temps d'attente definit ci dessus, les Reservations
+                    seront assignees au meme vehicules
+                * si aucun vol, la voiture part
+                    Exemples:
+                        capacite voiture = 10
+                        nombre de personnes = 6
+                        -> consideration du temps d'attente = 30 min
+                        retour du vehicule = 11:00
+                        intervalle [ 11:00; 11:30 ]
+                            * pas de reservations entre l'intervalle [ 11:00; 11:30 ] 
+                                    -> voiture part avec 6 personnes
+                            * reservations 11:10 , 11:20 , 11: 25
+                                    -> Assignation prioritaire des non assignees
+                                    -> Assignation de 4 personnes venant des nouvelles reservations
