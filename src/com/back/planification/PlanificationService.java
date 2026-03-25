@@ -476,7 +476,15 @@ public class PlanificationService {
 
         Map<Integer, EtatVehiculeGroupe> etatsGroupe = new LinkedHashMap<>();
 
-        for (Reservation reservation : reservationsTriees) {
+        List<Reservation> reservationsRestantes = new ArrayList<>(reservationsTriees);
+
+        while (!reservationsRestantes.isEmpty()) {
+            Reservation reservation = choisirProchaineReservationPourSplit(reservationsRestantes, etatsGroupe.values());
+            if (reservation == null) {
+                break;
+            }
+            reservationsRestantes.removeIf(r -> r.getIdReservation() == reservation.getIdReservation());
+
             int passagersRestants = assignationRepository.getPassagersRestantsByReservationId(reservation.getIdReservation());
 
             while (passagersRestants > 0) {
@@ -558,6 +566,51 @@ public class PlanificationService {
             vehiculePlan.addVoyage(voyage);
             vehiculePlan.getReservations().addAll(reservationsVoyage);
         }
+    }
+
+    private Reservation choisirProchaineReservationPourSplit(List<Reservation> reservationsRestantes,
+                                                             Collection<EtatVehiculeGroupe> etatsGroupe) {
+        if (reservationsRestantes == null || reservationsRestantes.isEmpty()) {
+            return null;
+        }
+
+        List<EtatVehiculeGroupe> vehiculesEntames = etatsGroupe.stream()
+                .filter(e -> e.capaciteRestante > 0)
+                .collect(Collectors.toList());
+
+        if (vehiculesEntames.isEmpty()) {
+            return reservationsRestantes.stream()
+                    .max(Comparator.comparingInt(Reservation::getNbrPers))
+                    .orElse(reservationsRestantes.get(0));
+        }
+
+        return reservationsRestantes.stream()
+                .min((r1, r2) -> {
+                    int restants1 = assignationRepository.getPassagersRestantsByReservationId(r1.getIdReservation());
+                    int restants2 = assignationRepository.getPassagersRestantsByReservationId(r2.getIdReservation());
+
+                    int delta1 = deltaCapaciteLePlusProche(restants1, vehiculesEntames);
+                    int delta2 = deltaCapaciteLePlusProche(restants2, vehiculesEntames);
+
+                    if (delta1 != delta2) {
+                        return Integer.compare(delta1, delta2);
+                    }
+
+                    if (restants1 != restants2) {
+                        return Integer.compare(restants2, restants1);
+                    }
+
+                    return r1.getDateHeureArrivee().compareTo(r2.getDateHeureArrivee());
+                })
+                .orElse(reservationsRestantes.get(0));
+    }
+
+    private int deltaCapaciteLePlusProche(int passagersRestants,
+                                          Collection<EtatVehiculeGroupe> vehiculesEntames) {
+        return vehiculesEntames.stream()
+                .mapToInt(e -> Math.abs(e.capaciteRestante - passagersRestants))
+                .min()
+                .orElse(Integer.MAX_VALUE);
     }
 
     private void mettreAJourReservationNonAssignee(PlanificationResult result,
