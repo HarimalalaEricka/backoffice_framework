@@ -621,7 +621,7 @@ Voir [Sprint8.txt](backoffice_framework/Sprint8.txt) et vérifier que l’algo p
 ### 1) Repository : requêtes nécessaires (Sprint 8)
 Dans [ReservationRepository.java](src/com/back/repository/ReservationRepository.java) :
 
-- [ ] Ajouter une méthode “fenêtre” pour Sprint 8 (indispensable pour `[t ; t+temps_attente]`) :
+- [x] Ajouter une méthode “fenêtre” pour Sprint 8 (indispensable pour `[t ; t+temps_attente]`) :
   - `List<Reservation> findUnassignedByDateAndArrivalBetween(LocalDate date, LocalDateTime start, LocalDateTime end)`
   - Doit retourner **nbr_pers_restants** (comme `findUnassignedByDateAndArrivalBefore`)
   - Tri conseillé : `date_heure_arrivee ASC`

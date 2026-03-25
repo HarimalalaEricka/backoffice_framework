@@ -8,6 +8,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
 
@@ -135,6 +136,52 @@ public class ReservationRepository {
         } catch (SQLException e) {
             System.err.println("Erreur lors de la récupération des réservations avec passagers restants : " + e.getMessage());
         }
+        return reservations;
+    }
+    
+    /**
+     * Sprint 8 - Récupère les réservations ayant encore des passagers restants à assigner
+     * pour une date donnée et dont l'heure d'arrivée est comprise dans [start ; end].
+     * Retourne nbr_pers_restants (comme findUnassignedByDateAndArrivalBefore).
+     */
+    public List<Reservation> findUnassignedByDateAndArrivalBetween(LocalDate date, LocalDateTime start, LocalDateTime end) {
+        List<Reservation> reservations = new ArrayList<>();
+        Connection conn = connexion.getConnection();
+        if (conn == null) {
+            System.err.println("Connexion non établie");
+            return reservations;
+        }
+
+        String sql =
+                "SELECT r.idReservation, r.client_id, (r.nbr_pers - COALESCE(SUM(a.nb_pers_assigne), 0)) AS nbr_pers_restants, " +
+                "r.date_heure_arrivee, r.hotel_id " +
+                "FROM Reservation r " +
+                "LEFT JOIN Assignation a ON a.reservation_id = r.idReservation " +
+                "WHERE DATE(r.date_heure_arrivee) = ? " +
+                "AND r.date_heure_arrivee >= ? " +
+                "AND r.date_heure_arrivee <= ? " +
+                "GROUP BY r.idReservation, r.client_id, r.nbr_pers, r.date_heure_arrivee, r.hotel_id " +
+                "HAVING (r.nbr_pers - COALESCE(SUM(a.nb_pers_assigne), 0)) > 0 " +
+                "ORDER BY r.date_heure_arrivee ASC";
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDate(1, Date.valueOf(date));
+            ps.setTimestamp(2, java.sql.Timestamp.valueOf(start));
+            ps.setTimestamp(3, java.sql.Timestamp.valueOf(end));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    int idReservation = rs.getInt("idReservation");
+                    String clientId = rs.getString("client_id");
+                    int nbrPers = rs.getInt("nbr_pers_restants");
+                    java.time.LocalDateTime dateHeureArrivee = rs.getTimestamp("date_heure_arrivee").toLocalDateTime();
+                    int hotelId = rs.getInt("hotel_id");
+                    reservations.add(new Reservation(idReservation, clientId, nbrPers, dateHeureArrivee, hotelId));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur lors de la récupération des réservations dans la fenêtre : " + e.getMessage());
+        }
+
         return reservations;
     }
 }
