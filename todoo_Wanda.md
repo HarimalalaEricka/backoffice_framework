@@ -545,3 +545,157 @@ SORTIE: Map<LocalDateTime, List<Reservation>>
 4. **Tri initial** : Les réservations DOIVENT être triées par `date_heure_arrivee ASC` AVANT le regroupement
 
 ---
+
+- SPRINT 8 :
+
+# ✅ SPRINT 8 — TÂCHE 2 : Assignation des réservations non assignées quand des véhicules sont disponibles
+
+## 🎯 Objectif
+Adapter l’algorithme de planification pour gérer le cas **“véhicule redisponible (heure de retour à l’aéroport)”** :
+- identifier les réservations **non assignées** (incluant “partiellement assignées” = passagers restants),
+- dès qu’un véhicule redevient disponible, **créer un groupe à cette heure de dispo**,
+- assigner en **priorité** les non assignées, puis compléter avec des réservations “normales” dans la **fenêtre de temps d’attente**,
+- respecter le split/capacité (Sprint 7) et la réutilisation (Sprint 3).
+
+> Rappel important (du backlog) : après intégration, **Tâche 2 est prise en compte en premier**.
+
+Références :
+- Spécification Tâche 2 : [To-do-sprint8.txt](backoffice_framework/To-do-sprint8.txt)
+- Exemples de cas : [Sprint8.txt](backoffice_framework/Sprint8.txt)
+
+---
+
+## ✅ Périmètre / Ce qui NE doit pas changer
+Conserver les règles métier et briques existantes, sauf ce qui concerne Sprint 8 :
+- Sprint 3 : calcul retour + réutilisation véhicule (via `vehiculesHeureRetour`) dans [PlanificationService.java](src/com/back/planification/PlanificationService.java)
+- Sprint 5 : `temps_attente` (Parametre) + regroupement par tranche dans [PlanificationService.java](src/com/back/planification/PlanificationService.java)
+- Sprint 7 : split + “remplissage progressif” + priorités sur véhicules entamés, dans [PlanificationService.java](src/com/back/planification/PlanificationService.java)
+
+---
+
+## 🧩 Règles métier Sprint 8 (à ajouter/clarifier)
+### RG-S8-1 — Déclencheur “véhicule disponible”
+Quand un véhicule a une `heureRetour` (ou une heure dispo définie) :
+- on doit tenter une assignation **à partir de cette heure** (pas attendre le prochain vol/tranche).
+
+### RG-S8-2 — Priorité des réservations
+À l’instant `t = heureDispoVehicule` :
+1) Réservations **non assignées** (passagers restants > 0) avec `date_heure_arrivee <= t` en priorité
+2) Puis réservations “normales” dans la fenêtre `[t ; t + temps_attente]` pour compléter (si capacité restante)
+
+### RG-S8-3 — Départ immédiat si véhicule plein
+- Si capacité du véhicule < passagers à charger (split Sprint 7) ⇒ **charger jusqu’à capacité**, départ.
+- Si véhicule devient plein à cause des non assignées ⇒ départ immédiat (à `t`, car déjà arrivées).
+
+### RG-S8-4 — Sinon, considération du temps d’attente
+- Si après avoir chargé les non assignées il reste de la place :
+  - on peut “attendre” jusqu’à `t + temps_attente` pour inclure des réservations arrivant dans `[t ; t + temps_attente]`
+  - si aucune réservation dans cette fenêtre ⇒ départ avec ce qui est chargé (départ à `t`)
+
+---
+
+## 📌 Cas attendus (Sprint8.txt)
+Voir [Sprint8.txt](backoffice_framework/Sprint8.txt) et vérifier que l’algo produit le comportement :
+- Cas 1 : non assignées priorisées, puis attente si reste place
+- Cas 2 : véhicule dispo 9:45, fenêtre [9:45–10:15] ; inclure non assignées + vols 10:00/10:10 si besoin ; ne pas “bloquer” jusqu’à 10:40
+- Cas 3 : après split, prochaine assignation trie décroissant sur non assignées (ex: 11 puis 1)
+- Cas 4 : véhicule entamé, reste 2 places ⇒ prendre la réservation la plus “proche” (2) plutôt que 3 (logique Sprint 7 déjà présente)
+
+---
+
+## 🗂️ Fichiers impactés
+### ⭐⭐⭐ Métier (principal)
+- [PlanificationService.java](src/com/back/planification/PlanificationService.java)
+
+### ⭐⭐ Accès données (probable)
+- [ReservationRepository.java](src/com/back/repository/ReservationRepository.java)
+
+### ⭐ Tests (à ajouter)
+- [src/com/back/test/TestSprint7.java](src/com/back/test/TestSprint7.java) (référence de style)
+- (Créer un nouveau test Sprint 8 dans le même dossier)
+
+---
+
+## 🛠️ TODO détaillée (développement)
+
+### 1) Repository : requêtes nécessaires (Sprint 8)
+Dans [ReservationRepository.java](src/com/back/repository/ReservationRepository.java) :
+
+- [ ] Ajouter une méthode “fenêtre” pour Sprint 8 (indispensable pour `[t ; t+temps_attente]`) :
+  - `List<Reservation> findUnassignedByDateAndArrivalBetween(LocalDate date, LocalDateTime start, LocalDateTime end)`
+  - Doit retourner **nbr_pers_restants** (comme `findUnassignedByDateAndArrivalBefore`)
+  - Tri conseillé : `date_heure_arrivee ASC`
+
+> Alternative si vous voulez éviter une nouvelle query : réutiliser `findByDate(date)` + filtrage en mémoire + `assignationRepository.getPassagersRestantsByReservationId(...)`, mais c’est plus coûteux.
+
+---
+
+### 2) Service : intégrer l’événement “vehicule redisponible”
+Dans [PlanificationService.java](src/com/back/planification/PlanificationService.java) :
+
+#### 2.1 — Créer une méthode dédiée Sprint 8 (nouveau)
+- [ ] Ajouter une méthode du style :
+  - `private void traiterVehiculesRedisponiblesAvantProchainGroupe(LocalDate date, LocalDateTime prochainDepart, int tempsAttente, List<Vehicule> tousVehicules, Map<Integer, LocalDateTime> vehiculesHeureRetour, Map<Integer, VehiculePlanDTO> vehiculePlans, PlanificationResult result)`
+- But : tant qu’il existe un véhicule dont `heureRetour <= prochainDepart` :
+  - déclencher un mini-cycle d’assignation à `t = heureRetour` (ou heure dispo),
+  - appliquer RG-S8-1..4,
+  - mettre à jour `vehiculesHeureRetour` (nouveau trajet) si des réservations ont été chargées.
+
+#### 2.2 — Implémenter “groupe Sprint 8 à l’heure t”
+- [ ] Ajouter une méthode du style :
+  - `private void assignerQuandVehiculeDisponible(LocalDate date, LocalDateTime heureDispo, Vehicule vehicule, int tempsAttente, Map<Integer, LocalDateTime> vehiculesHeureRetour, Map<Integer, VehiculePlanDTO> vehiculePlans, PlanificationResult result)`
+- Comportement :
+  1) Charger **en priorité** les non assignées `<= heureDispo`
+     - utiliser `ReservationRepository.findUnassignedByDateAndArrivalBefore(date, heureDispo)`
+  2) Si capacité restante > 0 :
+     - charger ensuite des réservations dans `[heureDispo ; heureDispo+tempsAttente]`
+     - via la nouvelle méthode `findUnassignedByDateAndArrivalBetween`
+  3) Appliquer les règles Sprint 7 pour le remplissage (split + choix “plus proche” quand véhicule entamé)
+     - Recommandation : réutiliser la logique “véhicule entamé” déjà en place :
+       - créer un `EtatVehiculeGroupe` initialisé avec CE véhicule,
+       - réutiliser `choisirProchaineReservationPourSplit(...)` + `choisirVehiculeEntame(...)`,
+       - **interdire** d’ouvrir un autre véhicule dans ce mini-cycle (Sprint 8 = on exploite ce véhicule dispo ; si plusieurs véhicules sont dispo, ils auront chacun leur mini-cycle).
+  4) Définir l’heure de départ “Sprint 8” :
+     - si on n’a chargé que des réservations `<= heureDispo` ⇒ départ `heureDispo`
+     - si on a chargé des réservations futures dans la fenêtre ⇒ départ = max(arrivéeChargéeMax, heureDispo) (mais pas au-delà de `heureDispo+tempsAttente`)
+  5) Calculer le trajet : `trajetCalculator.calculerTrajetComplet(heureDepart, reservationsVoyage)` puis MAJ `vehiculesHeureRetour`.
+
+---
+
+### 3) Service : ordre d’exécution (important)
+Dans `planifierJour(...)` de [PlanificationService.java](src/com/back/planification/PlanificationService.java) :
+
+- [ ] Avant de traiter chaque tranche/vol (boucle sur `groupesTries`) :
+  - appeler `traiterVehiculesRedisponiblesAvantProchainGroupe(..., prochainDepart = debutIntervalleDuGroupeOuHeureVol, ...)`
+  - ainsi Sprint 8 Tâche 2 est effectivement “prise en premier” dès qu’un véhicule redevient dispo.
+
+- [ ] Après la boucle (fin de journée) :
+  - optionnel mais recommandé : traiter encore les véhicules redisponibles tant qu’il reste des non assignées (sinon certaines resteront non assignées alors qu’un véhicule revient plus tard dans la journée).
+
+---
+
+### 4) Nettoyage / cohérence
+- [ ] Vérifier la méthode `assignerReservationsNonAssigneesAuIntervalle(...)` (en haut de [PlanificationService.java](src/com/back/planification/PlanificationService.java)) :
+  - soit la **déprécier** (non utilisée),
+  - soit la **refactorer** pour utiliser “passagers restants” + fenêtre `[t ; t+tempsAttente]` afin d’éviter un code mort/confus.
+
+---
+
+## 🧪 TODO Tests Sprint 8
+Créer un test “à la main” (même style que [TestSprint7.java](src/com/back/test/TestSprint7.java)) :
+
+- [ ] Préparer un jeu de données SQL Sprint 8 (nouveau script dans [scripts/](backoffice_framework/scripts/)) :
+  - véhicules + réservations aux heures des cas 1–4
+  - assignations pré-existantes pour forcer une `heureRetour` réaliste (comme l’initialisation “assignations existantes” déjà supportée)
+- [ ] Nouveau test `TestSprint8` (mêmes constantes DB) :
+  - Cas 2 : véhicule dispo 09:45 ⇒ doit déclencher départ/assignation autour de 09:45..10:15 (pas attendre 10:40)
+  - Cas 3 : après split, priorité non assignées par passagers restants décroissant
+  - Cas 4 : reste 2 places ⇒ prend la réservation de 2
+
+---
+
+## ✅ Critères d’acceptation
+- Les réservations “non assignées” (passagers restants) sont priorisées lors d’un événement “véhicule dispo”.
+- Un véhicule redisponible peut repartir **avant** le prochain groupe/tranche si des réservations non assignées existent.
+- Si la capacité n’est pas pleine, l’algorithme ne dépasse pas `temps_attente` pour compléter.
+- Les règles Sprint 7 (split + logique véhicule entamé) continuent de s’appliquer.
