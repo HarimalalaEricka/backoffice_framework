@@ -20,11 +20,11 @@ INSERT INTO Vehicule (idVehicule, reference, nbr_places, type_carburant) VALUES
 INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
 (1, 'r1', '2026-03-25 09:00:00', 6, 2),
 (2, 'r2', '2026-03-25 09:20:00', 4, 2),
-(3, 'r3', '2026-03-25 09:10:00', 1, 2);
+(3, 'r3', '2026-03-25 09:10:00', 3, 2);
 
 -- Resultat attendu :
 /*
     V1 : r1 (6 pers) + r2 (2 pers) = 8 pers -> complet
-    V2 : r2 (2 pers restants) + r3 (1 pers) = 3 pers -> complet
+    V2 : r2 (2 pers restants) + r3 (1 pers) = 5 pers -> complet
     Non assigné : r3 (2 pers) -> pas de véhicule dispo 
 */

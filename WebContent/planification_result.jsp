@@ -137,6 +137,9 @@
 <body>
     <div class="container">
         <h1>Résultat de la Planification</h1>
+        <h1>ETU003350</h1>
+        <h1>ETU003366</h1>
+        <h1>ETU003324</h1>
         
         <% if(request.getAttribute("error") != null) { %>
             <div class="error">
