@@ -4,6 +4,9 @@ import com.app.models.Assignation;
 import com.app.models.Hotel;
 import com.app.models.Reservation;
 import com.app.models.Vehicule;
+import com.app.planification.TrajetCalculator;
+import com.app.planification.TrajetComplet;
+import com.app.planification.VoyageDTO;
 import com.app.repository.AssignationRepository;
 import com.app.repository.ReservationRepository;
 import com.app.repository.VehiculeRepository;
@@ -488,7 +491,54 @@ public class PlanificationService {
             int passagersRestants = assignationRepository.getPassagersRestantsByReservationId(reservation.getIdReservation());
 
             while (passagersRestants > 0) {
-                // Sprint 7 : priorité aux véhicules entamés du groupe courant
+                final int besoinRestant = passagersRestants;
+                // Véhicules "non entamés" disponibles pour ouvrir un nouvel état dans CE groupe
+                List<Vehicule> vehiculesDisponibles = tousVehicules.stream()
+                        .filter(v -> !etatsGroupe.containsKey(v.getIdVehicule()))
+                        .filter(v -> estVehiculeDisponible(v, vehiculesHeureRetour, heureVol))
+                        .collect(Collectors.toList());
+
+                // IMPORTANT Sprint7: split uniquement si aucun véhicule unique ne peut absorber tout le reste
+                boolean existeVehiculeEntameCapable = etatsGroupe.values().stream()
+                        .anyMatch(e -> e.capaciteRestante >= besoinRestant);
+
+                boolean existeVehiculeNeufCapable = vehiculesDisponibles.stream()
+                        .anyMatch(v -> v.getNbrPlaces() >= besoinRestant);
+
+                boolean splitAutorise = !(existeVehiculeEntameCapable || existeVehiculeNeufCapable);
+
+                if (!splitAutorise) {
+                    // 1) Priorité véhicules entamés, MAIS seulement s'ils peuvent prendre tout le reste
+                    EtatVehiculeGroupe entameCapable = choisirVehiculeEntameCapable(etatsGroupe.values(), passagersRestants, vehiculePlans);
+                    if (entameCapable != null) {
+                        int nbAssignes = passagersRestants; // pas de split
+                        entameCapable.ajouterReservation(reservation, nbAssignes);
+                        enregistrerAssignation(reservation, entameCapable.vehicule, date, nbAssignes);
+                        passagersRestants = 0;
+                        continue;
+                    }
+
+                    // 2) Sinon ouvrir un nouveau véhicule capable (plus proche + tie-breakers existants)
+                    List<Vehicule> capables = vehiculesDisponibles.stream()
+                            .filter(v -> v.getNbrPlaces() >= besoinRestant)
+                            .collect(Collectors.toList());
+
+                    Vehicule vehiculeChoisi = choisirAvecTieBreakers(capables, passagersRestants, true, vehiculePlans);
+                    if (vehiculeChoisi == null) {
+                        break;
+                    }
+
+                    EtatVehiculeGroupe etat = new EtatVehiculeGroupe(vehiculeChoisi);
+                    etatsGroupe.put(vehiculeChoisi.getIdVehicule(), etat);
+
+                    int nbAssignes = passagersRestants; // pas de split
+                    etat.ajouterReservation(reservation, nbAssignes);
+                    enregistrerAssignation(reservation, vehiculeChoisi, date, nbAssignes);
+                    passagersRestants = 0;
+                    continue;
+                }
+
+                // splitAutorise == true : on peut répartir (entamés d'abord, sinon nouveau véhicule)
                 EtatVehiculeGroupe vehiculeEntame = choisirVehiculeEntame(etatsGroupe.values(), passagersRestants, vehiculePlans);
                 if (vehiculeEntame != null) {
                     int nbAssignes = Math.min(passagersRestants, vehiculeEntame.capaciteRestante);
@@ -497,11 +547,6 @@ public class PlanificationService {
                     passagersRestants -= nbAssignes;
                     continue;
                 }
-
-                List<Vehicule> vehiculesDisponibles = tousVehicules.stream()
-                        .filter(v -> !etatsGroupe.containsKey(v.getIdVehicule()))
-                        .filter(v -> estVehiculeDisponible(v, vehiculesHeureRetour, heureVol))
-                        .collect(Collectors.toList());
 
                 if (vehiculesDisponibles.isEmpty()) {
                     break;
@@ -569,40 +614,28 @@ public class PlanificationService {
     }
 
     private Reservation choisirProchaineReservationPourSplit(List<Reservation> reservationsRestantes,
-                                                             Collection<EtatVehiculeGroupe> etatsGroupe) {
+                                                         Collection<EtatVehiculeGroupe> etatsGroupe) {
         if (reservationsRestantes == null || reservationsRestantes.isEmpty()) {
             return null;
         }
 
-        List<EtatVehiculeGroupe> vehiculesEntames = etatsGroupe.stream()
-                .filter(e -> e.capaciteRestante > 0)
-                .collect(Collectors.toList());
-
-        if (vehiculesEntames.isEmpty()) {
-            return reservationsRestantes.stream()
-                    .max(Comparator.comparingInt(Reservation::getNbrPers))
-                    .orElse(reservationsRestantes.get(0));
-        }
-
         return reservationsRestantes.stream()
-                .min((r1, r2) -> {
-                    int restants1 = assignationRepository.getPassagersRestantsByReservationId(r1.getIdReservation());
-                    int restants2 = assignationRepository.getPassagersRestantsByReservationId(r2.getIdReservation());
+            .max((r1, r2) -> {
+                int restants1 = assignationRepository.getPassagersRestantsByReservationId(r1.getIdReservation());
+                int restants2 = assignationRepository.getPassagersRestantsByReservationId(r2.getIdReservation());
 
-                    int delta1 = deltaCapaciteLePlusProche(restants1, vehiculesEntames);
-                    int delta2 = deltaCapaciteLePlusProche(restants2, vehiculesEntames);
+                if (restants1 != restants2) {
+                    return Integer.compare(restants1, restants2); // DESC via max()
+                }
 
-                    if (delta1 != delta2) {
-                        return Integer.compare(delta1, delta2);
-                    }
+                int cmpArrivee = r2.getDateHeureArrivee().compareTo(r1.getDateHeureArrivee());
+                if (cmpArrivee != 0) {
+                    return cmpArrivee; // DESC via max(): on inverse ici pour favoriser plus tôt si égalité de restants
+                }
 
-                    if (restants1 != restants2) {
-                        return Integer.compare(restants2, restants1);
-                    }
-
-                    return r1.getDateHeureArrivee().compareTo(r2.getDateHeureArrivee());
-                })
-                .orElse(reservationsRestantes.get(0));
+                return Integer.compare(r2.getIdReservation(), r1.getIdReservation());
+            })
+            .orElse(reservationsRestantes.get(0));
     }
 
     private int deltaCapaciteLePlusProche(int passagersRestants,
@@ -758,6 +791,55 @@ public class PlanificationService {
         List<EtatVehiculeGroupe> finalistes = !diesels.isEmpty() ? diesels : moinsTrajets;
         return finalistes.get(random.nextInt(finalistes.size()));
     }
+
+    // 26032026
+    private EtatVehiculeGroupe choisirVehiculeEntameCapable(Collection<EtatVehiculeGroupe> etats,
+                                                            int passagersRestants,
+                                                            Map<Integer, VehiculePlanDTO> vehiculePlans) {
+        List<EtatVehiculeGroupe> capables = etats.stream()
+                .filter(e -> e.capaciteRestante >= passagersRestants)
+                .collect(Collectors.toList());
+
+        if (capables.isEmpty()) {
+            return null;
+        }
+
+        // "Plus proche" au-dessus: minimiser (capaciteRestante - besoin)
+        int meilleurDelta = capables.stream()
+                .mapToInt(e -> (e.capaciteRestante - passagersRestants))
+                .min()
+                .orElse(Integer.MAX_VALUE);
+
+        List<EtatVehiculeGroupe> plusProches = capables.stream()
+                .filter(e -> (e.capaciteRestante - passagersRestants) == meilleurDelta)
+                .collect(Collectors.toList());
+
+        // Tie-breaker: nb trajets min
+        int minTrajets = plusProches.stream()
+                .mapToInt(e -> vehiculePlans.containsKey(e.vehicule.getIdVehicule())
+                        ? vehiculePlans.get(e.vehicule.getIdVehicule()).getNombreVoyages()
+                        : 0)
+                .min()
+                .orElse(0);
+
+        List<EtatVehiculeGroupe> moinsTrajets = plusProches.stream()
+                .filter(e -> {
+                    int trajets = vehiculePlans.containsKey(e.vehicule.getIdVehicule())
+                            ? vehiculePlans.get(e.vehicule.getIdVehicule()).getNombreVoyages()
+                            : 0;
+                    return trajets == minTrajets;
+                })
+                .collect(Collectors.toList());
+
+        // Diesel prioritaire
+        List<EtatVehiculeGroupe> diesels = moinsTrajets.stream()
+                .filter(e -> "D".equals(e.vehicule.getTypeCarburant()))
+                .collect(Collectors.toList());
+
+        List<EtatVehiculeGroupe> finalistes = !diesels.isEmpty() ? diesels : moinsTrajets;
+        return finalistes.get(random.nextInt(finalistes.size()));
+    }
+
 
     private static class EtatVehiculeGroupe {
         private final Vehicule vehicule;
