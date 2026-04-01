@@ -155,6 +155,39 @@ INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers,
 INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
 (4005, 'C4-LATE-1', '2026-04-30 16:00:00', 1, 3);
 
+
+-- =========================================================
+-- CAS 5 (2026-04-30)
+INSERT INTO Vehicule (idVehicule, reference, nbr_places, type_carburant) VALUES
+(105, 'V-S8-CAS5-12P', 12, 'D');
+
+-- SIM : fixe heureRetour de V1 à 09:50
+-- départ = 09:06, Hotel D22 (22km, A/R=44min) => retour = 09:50
+INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
+(5001, 'SIM-C5',    '2026-05-01 09:06:00',  1, 2);
+ 
+INSERT INTO Assignation (reservation_id, vehicule_id, date_heure_planification, nb_pers_assigne) VALUES
+(5001, 105, '2026-05-01 00:00:00', 1);
+ 
+-- R1 : non assignée, arrivée 09:30 (avant dispo V1 à 09:50)
+-- Sera récupérée par Sprint5-Tâche1 lors du traitement du groupe [10:00;10:30]
+-- car arrivée 09:30 < debutIntervalle 10:00
+INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
+(5002, 'C5-R1-7-NA',  '2026-05-01 08:30:00',  7, 2);
+-- Pas d'Assignation pour 5002 → elle reste "non assignée"
+ 
+-- Réservations dans la fenêtre [10:00 ; 10:30]
+INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
+(5003, 'C5-R2-10',    '2026-05-01 10:00:00', 10, 2),
+(5004, 'C5-R3-7',     '2026-05-01 10:10:00',  7, 2),
+(5005, 'C5-R4-3',     '2026-05-01 10:15:00',  3, 2);
+ 
+-- Réservation tardive : force un 3e groupe [11:00;11:30]
+-- Permet à V1 (retour=10:44) d'être disponible pour un 2e voyage
+INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
+(5006, 'C5-LATE-1',   '2026-05-01 11:00:00',  1, 2);
+ 
+
 -- =========================================================
 -- REQUÊTES DE CONTRÔLE (avant exécution de la planification)
 -- =========================================================
