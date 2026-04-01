@@ -38,15 +38,19 @@ REM =====================================
 if not exist "%WEB_INF%\classes" mkdir "%WEB_INF%\classes"
 
 REM =====================================
-REM Compiler les classes Java
+REM Compiler les classes Java (exclure les tests)
 REM =====================================
 set JAVA_FILES=
 
 for /R src %%f in (*.java) do (
-    set JAVA_FILES=!JAVA_FILES! "%%f"
+    REM Exclure les fichiers de test JUnit
+    echo %%f | findstr /i "test" >nul
+    if errorlevel 1 (
+        set JAVA_FILES=!JAVA_FILES! "%%f"
+    )
 )
 
-javac -parameters -cp "%WEB_INF%\lib\*" -d "%WEB_INF%\classes" %JAVA_FILES%
+javac -cp "%WEB_INF%\lib\*" -d "%WEB_INF%\classes" %JAVA_FILES%
 
 if errorlevel 1 (
     echo ❌ Erreur lors de la compilation !

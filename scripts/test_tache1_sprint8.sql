@@ -7,7 +7,7 @@
 -- - Les assigner au groupe d'intervalle suivante
 -- - Les réservations non assignées seront assignées en premiers (priorité)
 --
--- Date de test : 2026-03-26
+-- Date de test : 2026-04-01
 -- =================================================================
 
 -- Connexion à la base
@@ -47,57 +47,158 @@ INSERT INTO Distance (from_hotel_id, to_hotel_id, distance_km) VALUES
 
 -- Véhicules disponibles
 INSERT INTO Vehicule (idVehicule, reference, nbr_places, type_carburant) VALUES
-(1, 'BUS-001', 10, 'D'),
-(2, 'BUS-002', 8, 'D'),
+(1, 'BUS-001', 20, 'D'),   -- Capacité augmentée pour le test
+(2, 'BUS-002', 15, 'D'),   -- Capacité augmentée pour le test
 (3, 'BUS-003', 12, 'ES'),
-(4, 'BUS-004', 6, 'D');
+(4, 'BUS-004', 10, 'D');
 
 -- =================================================================
--- SCÉNARIO 1 : TÂCHE 1 - Priorisation des non assignées
--- Date de test : 2026-03-26
+-- SCÉNARIO PRINCIPAL : TÂCHE 1 - Priorisation des non assignées
+-- Date de test : 2026-04-01
 --
--- Scénario :
--- - 2 réservations non assignées du jour antérieur (25/03) : 06:00, 06:45
--- - 3 nouvelles réservations du jour actuel (26/03) : 08:00, 08:10, 08:15
+-- Scénario EXACT de la tâche :
+-- - 3 réservations non assignées : 06:00, 06:45, 06:50
+-- - Nouveau groupe 8:00-8:30 : 08:00, 08:10, 08:15
 -- - Temps d'attente = 30 min → Groupe 8:00-8:30
 --
--- Attendu :
--- 1. Les non assignées (06:00, 06:45) sont assignées EN PREMIER
--- 2. Puis les nouvelles (08:00, 08:10, 08:15) selon RG7/RG11
--- 3. Respect des règles RG8 (remplissage progressif), RG9 (nearest-first)
+-- Ordre d'assignation ATTENDU :
+-- 1. 06:00 (priorité - non assignée)
+-- 2. 06:45 (priorité - non assignée)
+-- 3. 06:50 (priorité - non assignée)
+-- 4. 08:00 (groupe suivant)
+-- 5. 08:10 (groupe suivant)
+-- 6. 08:15 (groupe suivant)
 -- =================================================================
 
--- Réservations non assignées du jour antérieur (25/03)
--- Ces réservations n'ont AUCUNE assignation → elles sont "non assignées"
+-- RÉSERVATIONS NON ASSIGNÉES (aucune assignation - priorité absolue)
+-- Ces réservations arrivent tôt et n'ont pas encore été assignées
 INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
-(1, 'CLIENT-001', '2026-03-25 06:00:00', 3, 2),  -- 3 pers, Hotel Carlton
-(2, 'CLIENT-002', '2026-03-25 06:45:00', 2, 3);  -- 2 pers, Hotel Colbert
+(1, 'CLIENT_0600', '2026-04-10 06:00:00', 3, 2),  -- 3 pers, Hotel Carlton
+(2, 'CLIENT_0645', '2026-04-10 06:45:00', 2, 3),  -- 2 pers, Hotel Colbert
+(3, 'CLIENT_0650', '2026-04-10 06:50:00', 1, 4);  -- 1 pers, Hotel Ibis
 
--- Nouvelles réservations du jour actuel (26/03)
--- Ces réservations arrivent dans le groupe 8:00-8:30
+-- NOUVEAU GROUPE D'INTERVALLE (8:00 - 8:30)
+-- Ces réservations arrivent dans le prochain groupe temporel
 INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
-(3, 'CLIENT-003', '2026-03-26 08:00:00', 4, 2),  -- 4 pers, Hotel Carlton
-(4, 'CLIENT-004', '2026-03-26 08:10:00', 3, 4),  -- 3 pers, Hotel Ibis
-(5, 'CLIENT-005', '2026-03-26 08:15:00', 2, 5);  -- 2 pers, Hotel Panorama
+(4, 'CLIENT_0800', '2026-04-10 08:00:00', 5, 3),  -- 5 pers, Hotel Colbert
+(5, 'CLIENT_0810', '2026-04-10 08:10:00', 4, 2),  -- 4 pers, Hotel Carlton
+(6, 'CLIENT_0815', '2026-04-10 08:15:00', 3, 4);  -- 3 pers, Hotel Ibis
 
 -- =================================================================
--- RÉSULTAT ATTENDU APRÈS PLANIFICATION DU 26/03
+-- RÉSULTAT ATTENDU APRÈS PLANIFICATION DU 01/04
 -- =================================================================
 
--- Phase 1 : Assignation des NON ASSIGNÉES (priorité absolue)
--- Ordre d'assignation : NON-ASSIGNEE-001 (3 pers) → NON-ASSIGNEE-002 (2 pers)
--- Véhicule BUS-001 (10 places) prend les 2 non assignées = 5 pers
+-- PHASE 1 : Assignation des RÉSERVATIONS NON ASSIGNÉES (priorité absolue)
+-- Ordre : 06:00 (3p) → 06:45 (2p) → 06:50 (1p)
+-- Véhicule BUS-001 (20 places) prend les 3 non assignées = 6 pers
 
--- Phase 2 : Assignation des NOUVELLES réservations selon RG7/RG11
+-- PHASE 2 : Assignation du GROUPE 8:00-8:30 selon RG7/RG11
 -- RG7 : Tri par nombre passagers décroissant
--- CLIENT-003 (4 pers), CLIENT-004 (3 pers), CLIENT-005 (2 pers)
--- RG11 : En cas d'égalité, ordre alphabétique par hôtel
--- Véhicule BUS-001 (5 places restantes) prend CLIENT-003 (4 pers) = 9 pers
--- Véhicule BUS-002 (8 places) prend CLIENT-004 (3 pers) + CLIENT-005 (2 pers) = 5 pers
+-- 08:00 (5p), 08:10 (4p), 08:15 (3p)
+-- BUS-001 (14 places restantes) prend 08:00 (5p) = 11 pers
+-- BUS-002 (15 places) prend 08:10 (4p) + 08:15 (3p) = 7 pers
 
 -- =================================================================
 -- VÉRIFICATION DES RÉSULTATS
 -- =================================================================
+
+-- =================================================================
+-- RÉSULTAT ATTENDU APRÈS PLANIFICATION DU 01/04
+-- =================================================================
+
+-- PHASE 1 : Assignation des RÉSERVATIONS NON ASSIGNÉES (priorité absolue)
+-- Ordre : 06:00 (3p) → 06:45 (2p) → 06:50 (1p)
+-- Véhicule BUS-001 (20 places) prend les 3 non assignées = 6 pers
+
+-- PHASE 2 : Assignation du GROUPE 8:00-8:30 selon RG7/RG11
+-- RG7 : Tri par nombre passagers décroissant
+-- 08:00 (5p), 08:10 (4p), 08:15 (3p)
+-- BUS-001 (14 places restantes) prend 08:00 (5p) = 11 pers
+-- BUS-002 (15 places) prend 08:10 (4p) + 08:15 (3p) = 7 pers
+
+-- =================================================================
+-- VÉRIFICATION DES RÉSULTATS
+-- =================================================================
+
+-- Exécuter la planification pour le 01/04
+-- SELECT * FROM Assignation WHERE DATE(date_heure_planification) = '2026-04-01' ORDER BY vehicule_id, reservation_id;
+
+-- Vérifier l'ordre d'assignation :
+-- BUS-001 devrait avoir : CLIENT_0600, CLIENT_0645, CLIENT_0650, CLIENT_0800
+-- BUS-002 devrait avoir : CLIENT_0810, CLIENT_0815
+
+-- =================================================================
+-- REQUÊTES DE VÉRIFICATION
+-- =================================================================
+
+-- 1. État des réservations AVANT planification
+SELECT 'ÉTAT AVANT PLANIFICATION :' as info;
+SELECT r.idReservation, r.client_id, r.nbr_pers, r.date_heure_arrivee::time as heure,
+       CASE WHEN a.reservation_id IS NULL THEN '🔴 NON ASSIGNÉE' ELSE '🟢 ASSIGNÉE' END as statut
+FROM reservation r
+LEFT JOIN assignation a ON r.idReservation = a.reservation_id
+WHERE DATE(r.date_heure_arrivee) = '2026-04-01'
+ORDER BY r.date_heure_arrivee ASC;
+
+-- 2. Vérifier que la table assignation est vide au départ
+SELECT 'VÉRIFICATION - Table assignation vide :' as info;
+SELECT COUNT(*) as nb_assignations_existantes
+FROM assignation
+WHERE reservation_id IN (
+    SELECT idReservation FROM reservation
+    WHERE DATE(date_heure_arrivee) = '2026-04-01'
+);
+
+-- 3. APRÈS PLANIFICATION - Ordre d'assignation
+SELECT 'ORDRE D''ASSIGNATION APRÈS PLANIFICATION :' as info;
+SELECT r.date_heure_arrivee::time as heure, r.client_id, r.nbr_pers,
+       a.vehicule_id, a.nb_pers_assigne,
+       CASE WHEN r.date_heure_arrivee < '08:00:00' THEN '⭐ PRIORITÉ (Non assignée)' ELSE '📅 Groupe 08:00-08:30' END as categorie
+FROM reservation r
+LEFT JOIN assignation a ON r.idReservation = a.reservation_id
+WHERE DATE(r.date_heure_arrivee) = '2026-04-01'
+ORDER BY a.date_heure_planification ASC NULLS LAST, r.date_heure_arrivee ASC;
+
+-- 4. Analyse de la priorisation
+SELECT 'ANALYSE DE LA PRIORISATION :' as info;
+SELECT
+    CASE WHEN r.date_heure_arrivee < '08:00:00' THEN '⭐ NON ASSIGNÉES ORIGINAL' ELSE '📅 GROUPE 08:00-08:30' END as categorie,
+    COUNT(*) as total_reservations,
+    SUM(CASE WHEN a.reservation_id IS NOT NULL THEN 1 ELSE 0 END) as assignees
+FROM reservation r
+LEFT JOIN assignation a ON r.idReservation = a.reservation_id
+WHERE DATE(r.date_heure_arrivee) = '2026-04-01'
+GROUP BY CASE WHEN r.date_heure_arrivee < '08:00:00' THEN '⭐ NON ASSIGNÉES ORIGINAL' ELSE '📅 GROUPE 08:00-08:30' END;
+
+-- 5. Détail par véhicule
+SELECT 'DÉTAIL PAR VÉHICULE :' as info;
+SELECT a.vehicule_id, v.reference,
+       STRING_AGG(r.client_id || '(' || r.date_heure_arrivee::time || ')', ', ' ORDER BY a.date_heure_planification) as reservations,
+       SUM(a.nb_pers_assigne) as total_passagers,
+       v.nbr_places as capacite_vehicule
+FROM assignation a
+JOIN reservation r ON a.reservation_id = r.idReservation
+LEFT JOIN vehicule v ON a.vehicule_id = v.idVehicule
+WHERE DATE(r.date_heure_arrivee) = '2026-04-01'
+GROUP BY a.vehicule_id, v.reference, v.nbr_places
+ORDER BY a.vehicule_id;
+
+-- =================================================================
+-- INSTRUCTIONS DE TEST
+-- =================================================================
+
+-- 1. Exécuter ce script pour charger les données
+-- 2. Lancer l'application et planifier pour 2026-04-01
+-- 3. Vérifier les assignations dans la base avec les requêtes ci-dessus
+-- 4. Vérifier que les non assignées (06:00, 06:45, 06:50) sont bien prioritaires
+-- 5. Vérifier que l'ordre correspond à l'exemple de la tâche
+
+-- =================================================================
+-- NETTOYAGE FINAL (optionnel)
+-- =================================================================
+-- Pour relancer les tests :
+-- TRUNCATE TABLE Assignation CASCADE;
+-- DELETE FROM Reservation WHERE DATE(date_heure_arrivee) = '2026-04-01';
 
 -- Exécuter la planification pour le 26/03
 -- SELECT * FROM Assignation WHERE DATE(date_heure_planification) = '2026-03-26' ORDER BY vehicule_id, reservation_id;
@@ -107,59 +208,19 @@ INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers,
 -- BUS-002 devrait avoir : CLIENT-004, CLIENT-005
 
 -- =================================================================
--- SCÉNARIO 2 : COMPORTEMENT NORMAL (sans non assignées)
--- Date de test : 2026-03-27
--- =================================================================
-
--- Nettoyer les assignations précédentes
--- TRUNCATE TABLE Assignation CASCADE;
-
--- Nouvelles réservations (aucune non assignée)
-INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
-(6, 'NORMAL-001', '2026-03-27 09:00:00', 5, 2),
-(7, 'NORMAL-002', '2026-03-27 09:15:00', 3, 3),
-(8, 'NORMAL-003', '2026-03-27 09:30:00', 2, 4);
-
--- Attendu : Comportement normal RG7/RG11 sans priorisation
-
--- =================================================================
--- SCÉNARIO 3 : CAPACITÉ INSUFFISANTE (RG8 - remplissage progressif)
--- Date de test : 2026-03-28
--- =================================================================
-
--- Réservations non assignées volumineuses
-INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
-(9, 'BIG-NON-ASSIGNEE', '2026-03-27 07:00:00', 8, 2);  -- 8 pers non assignée
-
--- Nouvelles réservations
-INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
-(10, 'CLIENT-010', '2026-03-28 10:00:00', 6, 3),
-(11, 'CLIENT-011', '2026-03-28 10:15:00', 4, 4);
-
--- Attendu :
--- Phase 1 : BIG-NON-ASSIGNEE (8 pers) prend BUS-001 (10 places) = 8 pers
--- Phase 2 : CLIENT-010 (6 pers) prend BUS-003 (12 places) = 6 pers
--- Phase 3 : CLIENT-011 (4 pers) pourrait être assignée au BUS-001 (2 places restantes) OU nouveau véhicule
-
--- =================================================================
 -- INSTRUCTIONS DE TEST
 -- =================================================================
 
 -- 1. Exécuter ce script pour charger les données
--- 2. Lancer l'application et planifier pour 2026-03-26
--- 3. Vérifier les assignations dans la base :
---    SELECT a.*, r.client_id, r.date_heure_arrivee, r.nbr_pers
---    FROM Assignation a
---    JOIN Reservation r ON a.reservation_id = r.idReservation
---    WHERE DATE(a.date_heure_planification) = '2026-03-26'
---    ORDER BY a.vehicule_id, a.date_heure_planification;
-
--- 4. Vérifier que les non assignées sont bien prioritaires
--- 5. Tester les autres dates pour valider les règles RG7/RG8/RG9/RG11
+-- 2. Lancer l'application et planifier pour 2026-04-01
+-- 3. Vérifier les assignations dans la base avec les requêtes ci-dessus
+-- 4. Vérifier que les non assignées (06:00, 06:45, 06:50) sont bien prioritaires
+-- 5. Vérifier que l'ordre correspond à l'exemple de la tâche :
+--    06:00 → 06:45 → 06:50 → 08:00 → 08:10 → 08:15
 
 -- =================================================================
 -- NETTOYAGE FINAL (optionnel)
 -- =================================================================
 -- Pour relancer les tests :
 -- TRUNCATE TABLE Assignation CASCADE;
--- DELETE FROM Reservation WHERE idReservation >= 1;
+-- DELETE FROM Reservation WHERE DATE(date_heure_arrivee) = '2026-04-01';

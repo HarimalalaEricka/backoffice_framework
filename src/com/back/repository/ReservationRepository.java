@@ -137,4 +137,48 @@ public class ReservationRepository {
         }
         return reservations;
     }
+
+    /**
+     * SPRINT 8 - TACHE 1 : Récupère les réservations COMPLÈTEMENT NON ASSIGNÉES
+     * (aucun passager assigné - 0 assignations) pour une date donnée
+     * et dont l'heure d'arrivée est <= cutoff.
+     * Triées par ordre d'arrivée (FIFO).
+     * 
+     * @param date La date de recherche
+     * @param cutoff L'heure limite d'arrivée (incluse)
+     * @return Liste des réservations sans aucune assignation, triées par heure d'arrivée ASC
+     */
+    public List<Reservation> findCompletelyUnassignedByDateAndArrivalBefore(LocalDate date, java.time.LocalDateTime cutoff) {
+        List<Reservation> reservations = new ArrayList<>();
+        Connection conn = connexion.getConnection();
+        if (conn == null) {
+            System.err.println("Connexion non établie");
+            return reservations;
+        }
+
+        String sql = "SELECT r.idReservation, r.client_id, r.nbr_pers, r.date_heure_arrivee, r.hotel_id " +
+                     "FROM Reservation r " +
+                     "WHERE DATE(r.date_heure_arrivee) = ? " +
+                     "AND r.date_heure_arrivee <= ? " +
+                     "AND r.idReservation NOT IN (SELECT DISTINCT reservation_id FROM Assignation) " +
+                     "ORDER BY r.date_heure_arrivee ASC";
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDate(1, Date.valueOf(date));
+            ps.setTimestamp(2, java.sql.Timestamp.valueOf(cutoff));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    int idReservation = rs.getInt("idReservation");
+                    String clientId = rs.getString("client_id");
+                    int nbrPers = rs.getInt("nbr_pers");
+                    java.time.LocalDateTime dateHeureArrivee = rs.getTimestamp("date_heure_arrivee").toLocalDateTime();
+                    int hotelId = rs.getInt("hotel_id");
+                    reservations.add(new Reservation(idReservation, clientId, nbrPers, dateHeureArrivee, hotelId));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur lors de la récupération des réservations complètement non assignées : " + e.getMessage());
+        }
+        return reservations;
+    }
 }
