@@ -1,0 +1,96 @@
+Regle de gestion :
+
+- Cas : voiture redisponible ou heure dispo defini
+    - reservation non assigne priorite, ensuite normale
+    - si voiture complet -> depart de suivante
+    - sinon + temps d'attente , si il n'y a plus de reservation apres temps d'attente -> depart
+
+
+Cas 1 :
+RN - 11 pers
+RN - 3 pers 
+V - 20 places
+-> apres assignation , reste 6 -> non complet donc + temps d'attente
+
+Cas 2 :
+V dispo 9h45 : plage [9h45 - 10h15]
+R1 - 10h00 (non assigne)
+R2 - 10H10 (ok assigne)
+R3 - 10H40 
+-> prochain regroupement a partir de R1 sa R3
+-> A partir de R3 et R1 (non assigne, traite en priorite)
+
+
+Cas 3 :
+R1 - 11
+R2 - 12
+V - 11 places
+-> R2 -> V1 -> 11 places -> complet -> depart
+Reste non assigne:
+R1 - 11
+R2 - 1
+- Prochaine assignation :
+    -trier par ordre decroissant de nbr de passager
+    -> donc R1 - 11 , ensuite R2 - 1
+
+
+Cas 4 :
+R1 - 11
+R2 - 3
+R3 - 2
+V - 13 places
+-> R1 -> 11 places V1
+-> Reste 2 places :
+    - trier par reservations avec nbr de passager le plus Prochaine
+    -> donc R3 = 2 = 2 places restant
+-> V -> R1 (11 pers) + R3 (2 pers)
+-> R3 -> non assigne
+
+
+-- test sprint 7 avant modif
+
+gestion_ticket=# select * from assignation;
+ idassignation | reservation_id | vehicule_id | date_heure_planification | nb_pers_assigne
+---------------+----------------+-------------+--------------------------+-----------------
+             1 |              1 |           5 | 2026-03-28 00:00:00      |               1
+             2 |              2 |           3 | 2026-03-28 00:00:00      |               1
+             3 |              3 |           1 | 2026-03-28 00:00:00      |               1
+             4 |              4 |           2 | 2026-03-28 00:00:00      |               1
+             5 |              5 |           4 | 2026-03-28 00:00:00      |               1
+             6 |              7 |           3 | 2026-03-28 00:00:00      |              12
+             7 |              9 |           3 | 2026-03-28 00:00:00      |              10
+             8 |              8 |           3 | 2026-03-28 00:00:00      |               2
+             9 |              8 |           1 | 2026-03-28 00:00:00      |               1
+            10 |             10 |           1 | 2026-03-28 00:00:00      |               4
+            11 |             10 |           2 | 2026-03-28 00:00:00      |               1
+            12 |              6 |           2 | 2026-03-28 00:00:00      |               4
+            13 |              6 |           4 | 2026-03-28 00:00:00      |               3
+            14 |              7 |           4 | 2026-03-28 00:00:00      |               6
+            15 |             11 |           5 | 2026-03-28 00:00:00      |              12
+            16 |              7 |           1 | 2026-03-28 00:00:00      |               2
+(16 lignes)
+
+
+-- test sprint 7 apres modif
+
+gestion_ticket=# select * from assignation;
+ idassignation | reservation_id | vehicule_id | date_heure_planification | nb_pers_assigne
+---------------+----------------+-------------+--------------------------+-----------------
+             1 |              1 |           5 | 2026-03-28 00:00:00      |               1
+             2 |              2 |           3 | 2026-03-28 00:00:00      |               1
+             3 |              3 |           1 | 2026-03-28 00:00:00      |               1
+             4 |              4 |           2 | 2026-03-28 00:00:00      |               1
+             5 |              5 |           4 | 2026-03-28 00:00:00      |               1
+             6 |              7 |           3 | 2026-03-28 00:00:00      |              12
+             7 |              7 |           1 | 2026-03-28 00:00:00      |               5
+             8 |              6 |           2 | 2026-03-28 00:00:00      |               5
+             9 |              7 |           4 | 2026-03-28 00:00:00      |               3
+            10 |              6 |           4 | 2026-03-28 00:00:00      |               2
+            11 |             10 |           4 | 2026-03-28 00:00:00      |               4
+            12 |              9 |           3 | 2026-03-28 00:00:00      |              10
+            13 |              8 |           3 | 2026-03-28 00:00:00      |               2
+            14 |              8 |           1 | 2026-03-28 00:00:00      |               1
+            15 |             10 |           1 | 2026-03-28 00:00:00      |               1
+            16 |             11 |           3 | 2026-03-28 00:00:00      |              12
+(16 lignes)
+
