@@ -8,6 +8,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
 
@@ -137,18 +138,13 @@ public class ReservationRepository {
         }
         return reservations;
     }
-
+    
     /**
-     * SPRINT 8 - TACHE 1 : Récupère les réservations COMPLÈTEMENT NON ASSIGNÉES
-     * (aucun passager assigné - 0 assignations) pour une date donnée
-     * et dont l'heure d'arrivée est <= cutoff.
-     * Triées par ordre d'arrivée (FIFO).
-     * 
-     * @param date La date de recherche
-     * @param cutoff L'heure limite d'arrivée (incluse)
-     * @return Liste des réservations sans aucune assignation, triées par heure d'arrivée ASC
+     * Sprint 8 - Récupère les réservations ayant encore des passagers restants à assigner
+     * pour une date donnée et dont l'heure d'arrivée est comprise dans [start ; end].
+     * Retourne nbr_pers_restants (comme findUnassignedByDateAndArrivalBefore).
      */
-    public List<Reservation> findCompletelyUnassignedByDateAndArrivalBefore(LocalDate date, java.time.LocalDateTime cutoff) {
+    public List<Reservation> findUnassignedByDateAndArrivalBetween(LocalDate date, LocalDateTime start, LocalDateTime end) {
         List<Reservation> reservations = new ArrayList<>();
         Connection conn = connexion.getConnection();
         if (conn == null) {
@@ -156,29 +152,36 @@ public class ReservationRepository {
             return reservations;
         }
 
-        String sql = "SELECT r.idReservation, r.client_id, r.nbr_pers, r.date_heure_arrivee, r.hotel_id " +
-                     "FROM Reservation r " +
-                     "WHERE DATE(r.date_heure_arrivee) = ? " +
-                     "AND r.date_heure_arrivee <= ? " +
-                     "AND r.idReservation NOT IN (SELECT DISTINCT reservation_id FROM Assignation) " +
-                     "ORDER BY r.date_heure_arrivee ASC";
+        String sql =
+                "SELECT r.idReservation, r.client_id, (r.nbr_pers - COALESCE(SUM(a.nb_pers_assigne), 0)) AS nbr_pers_restants, " +
+                "r.date_heure_arrivee, r.hotel_id " +
+                "FROM Reservation r " +
+                "LEFT JOIN Assignation a ON a.reservation_id = r.idReservation " +
+                "WHERE DATE(r.date_heure_arrivee) = ? " +
+                "AND r.date_heure_arrivee >= ? " +
+                "AND r.date_heure_arrivee <= ? " +
+                "GROUP BY r.idReservation, r.client_id, r.nbr_pers, r.date_heure_arrivee, r.hotel_id " +
+                "HAVING (r.nbr_pers - COALESCE(SUM(a.nb_pers_assigne), 0)) > 0 " +
+                "ORDER BY r.date_heure_arrivee ASC";
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setDate(1, Date.valueOf(date));
-            ps.setTimestamp(2, java.sql.Timestamp.valueOf(cutoff));
+            ps.setTimestamp(2, java.sql.Timestamp.valueOf(start));
+            ps.setTimestamp(3, java.sql.Timestamp.valueOf(end));
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     int idReservation = rs.getInt("idReservation");
                     String clientId = rs.getString("client_id");
-                    int nbrPers = rs.getInt("nbr_pers");
+                    int nbrPers = rs.getInt("nbr_pers_restants");
                     java.time.LocalDateTime dateHeureArrivee = rs.getTimestamp("date_heure_arrivee").toLocalDateTime();
                     int hotelId = rs.getInt("hotel_id");
                     reservations.add(new Reservation(idReservation, clientId, nbrPers, dateHeureArrivee, hotelId));
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Erreur lors de la récupération des réservations complètement non assignées : " + e.getMessage());
+            System.err.println("Erreur lors de la récupération des réservations dans la fenêtre : " + e.getMessage());
         }
+
         return reservations;
     }
 }

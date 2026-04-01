@@ -167,9 +167,9 @@ public class PlanificationService {
         // Map pour regrouper les assignations par véhicule pour le résultat
         Map<Integer, VehiculePlanDTO> vehiculePlans = new LinkedHashMap<>();
         
-        // Étape 6 : Pour chaque groupe (vol), essayer d'assigner à UN véhicule
+        // Étape 6 : Pour chaque groupe (tranche), traiter Sprint 8 d'abord, puis traiter le groupe
         for (Map.Entry<LocalDateTime, List<Reservation>> entry : groupesTries) {
-            LocalDateTime heureVol = entry.getKey();
+            LocalDateTime heureVol = entry.getKey();          // = fin de tranche (Sprint 5)
             List<Reservation> groupe = entry.getValue();
             
             // SPRINT 8 - TACHE 1 : Priorisation des réservations non assignées dans le prochain groupe
@@ -177,6 +177,8 @@ public class PlanificationService {
             // doivent être assignées EN PRIORITÉ au prochain groupe d'intervalle
             
             // Trouver l'heure d'arrivée la plus tôt dans ce groupe (début de l'intervalle)
+
+            // Début réel du groupe = première arrivée dans la tranche
             LocalDateTime debutIntervalle = groupe.stream()
                     .map(Reservation::getDateHeureArrivee)
                     .min(Comparator.naturalOrder())
@@ -290,15 +292,50 @@ public class PlanificationService {
             if (phase1Effectuee || phase2Effectuee) {
                 logger.info("✓ Sprint 8 - Tâche 1 : Fin traitement du groupe intervalle [" + debutIntervalle + "]");
             }
+            logger.info("Réservations triées (RG7+RG11) : " + 
+                       reservationsTriees.stream()
+                           .map(r -> r.getClientId() + " (" + r.getNbrPers() + " pers, " + 
+                                     hotelNoms.getOrDefault(r.getHotelId(), "Hotel#" + r.getHotelId()) + ")")
+                           .collect(Collectors.joining(", ")));
+
+            // Sprint 8 - Tâche 2 prise en compte en premier :
+            // traiter tous les véhicules redevenus dispo AVANT le début de ce groupe
+            traiterVehiculesRedisponiblesAvantProchainGroupe(
+                    date,
+                    debutIntervalle,
+                    tempsAttente,
+                    tousVehicules,
+                    vehiculesHeureRetour,
+                    vehiculePlans,
+                    result
+            );
+
+            // Puis traiter normalement le groupe courant (Sprint 5 + Sprint 7 + Sprint 3)
+            assignerAvecRemplissageProgressif(
+                    groupe,
+                    heureVol,
+                    date,
+                    tousVehicules,
+                    vehiculesHeureRetour,
+                    vehiculePlans,
+                    result,
+                    tempsAttente
+            );
         }
         
-        // Ajouter tous les plans au résultat
-        for (VehiculePlanDTO plan : vehiculePlans.values()) {
-            result.addVehiculePlan(plan);
-        }
-        
-        logger.info("Planification terminée. Véhicules assignés: " + result.getNombreVehiculesUtilises() + 
-                   ", Réservations non assignées: " + result.getNombreReservationsNonAssignees());
+        // Sprint 8 - fin de journée : re-tenter sur les véhicules redisponibles
+        // (jusqu'à minuit) pour éviter de laisser des non-assignées alors qu'un véhicule revient plus tard.
+        traiterVehiculesRedisponiblesAvantProchainGroupe(
+                date,
+                date.plusDays(1).atStartOfDay(),
+                tempsAttente,
+                tousVehicules,
+                vehiculesHeureRetour,
+                vehiculePlans,
+                result
+        );
+
+        result.setVehiculesAssignes(new ArrayList<>(vehiculePlans.values()));
         
         return result;
     }
@@ -481,6 +518,272 @@ public class PlanificationService {
         // Les trajets seront automatiquement supprimés par CASCADE si la table existe
         assignationRepository.deleteByDate(date);
         logger.info("Assignations réinitialisées");
+    }
+
+    /**
+     * Sprint 8 - Tâche 2
+     * Tant qu’il existe un véhicule dont l’heureRetour <= prochainDepart :
+     * - déclenche un mini-cycle d’assignation à t = heureRetour
+     * - priorise les non-assignées (<= t), puis complète dans [t ; t+tempsAttente]
+     */
+    private void traiterVehiculesRedisponiblesAvantProchainGroupe(
+            LocalDate date,
+            LocalDateTime prochainDepart,
+            int tempsAttente,
+            List<Vehicule> tousVehicules,
+            Map<Integer, LocalDateTime> vehiculesHeureRetour,
+            Map<Integer, VehiculePlanDTO> vehiculePlans,
+            PlanificationResult result) {
+
+        if (prochainDepart == null || tousVehicules == null || tousVehicules.isEmpty()
+                || vehiculesHeureRetour == null || vehiculesHeureRetour.isEmpty()) {
+            return;
+        }
+
+        Map<Integer, Vehicule> vehiculeById = tousVehicules.stream()
+                .collect(Collectors.toMap(Vehicule::getIdVehicule, v -> v, (a, b) -> a));
+
+        // Anti-boucle infinie : si à une heureDispo donnée on ne charge rien, on ne retente pas.
+        Set<String> tentativesSansChargement = new HashSet<>();
+
+        int gardeFou = 0;
+        while (true) {
+            if (gardeFou++ > 10_000) {
+                logger.warning("Sprint 8 - garde-fou atteint (boucle véhicules redisponibles).");
+                return;
+            }
+
+            Map.Entry<Integer, LocalDateTime> prochainVehicule = vehiculesHeureRetour.entrySet().stream()
+                    .filter(e -> e.getValue() != null)
+                    .filter(e -> !e.getValue().isAfter(prochainDepart)) // <= prochainDepart
+                    .filter(e -> !tentativesSansChargement.contains(e.getKey() + "|" + e.getValue()))
+                    .min(Comparator.comparing(Map.Entry::getValue))
+                    .orElse(null);
+
+            if (prochainVehicule == null) {
+                return;
+            }
+
+            int vehiculeId = prochainVehicule.getKey();
+            LocalDateTime heureDispo = prochainVehicule.getValue();
+            String cleTentative = vehiculeId + "|" + heureDispo;
+
+            Vehicule vehicule = vehiculeById.get(vehiculeId);
+            if (vehicule == null) {
+                tentativesSansChargement.add(cleTentative);
+                continue;
+            }
+
+            boolean charge = assignerQuandVehiculeDisponible(
+                    date,
+                    heureDispo,
+                    vehicule,
+                    tempsAttente,
+                    vehiculesHeureRetour,
+                    vehiculePlans,
+                    result
+            );
+
+            if (!charge) {
+                tentativesSansChargement.add(cleTentative);
+            }
+            // Si charge=true, vehiculesHeureRetour a été mis à jour (nouvelle heureRetour).
+            // On laisse la boucle continuer : si le véhicule revient encore avant prochainDepart,
+            // il pourra être retraité.
+        }
+    }
+
+    /**
+     * Sprint 8 - Tâche 2
+     * Mini-cycle sur UN véhicule à l’instant heureDispo.
+     * Priorité :
+     * 1) non assignées (passagers restants) avec arrivée <= heureDispo
+     * 2) puis complétion avec arrivées dans [heureDispo ; heureDispo+tempsAttente] si capacité restante
+     *
+     * @return true si au moins 1 passager a été chargé
+     */
+    private boolean assignerQuandVehiculeDisponible(
+            LocalDate date,
+            LocalDateTime heureDispo,
+            Vehicule vehicule,
+            int tempsAttente,
+            Map<Integer, LocalDateTime> vehiculesHeureRetour,
+            Map<Integer, VehiculePlanDTO> vehiculePlans,
+            PlanificationResult result) {
+
+        if (date == null || heureDispo == null || vehicule == null) {
+            return false;
+        }
+
+        int capacite = vehicule.getNbrPlaces();
+        if (capacite <= 0) {
+            return false;
+        }
+
+        LocalDateTime finFenetre = heureDispo.plusMinutes(Math.max(0, tempsAttente));
+
+        // RG-S8-2 (1) : non assignées <= heureDispo
+        List<Reservation> priorite = reservationRepository.findUnassignedByDateAndArrivalBefore(date, heureDispo);
+        List<Reservation> prioriteRestantes = new ArrayList<>(priorite);
+
+        // RG-S8-2 (2) : complétion dans [heureDispo ; heureDispo+tempsAttente]
+        List<Reservation> fenetre = reservationRepository.findUnassignedByDateAndArrivalBetween(date, heureDispo, finFenetre);
+
+        // Dédup (car "between" inclut heureDispo, et une réservation à heureDispo peut être dans les 2 listes)
+        Set<Integer> idsPriorite = priorite.stream()
+                .map(Reservation::getIdReservation)
+                .collect(Collectors.toSet());
+
+        List<Reservation> fenetreRestantes = fenetre.stream()
+                .filter(r -> !idsPriorite.contains(r.getIdReservation()))
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        EtatVehiculeGroupe etat = new EtatVehiculeGroupe(vehicule);
+
+        boolean hasFutureLoaded = false;
+        LocalDateTime maxArriveeChargee = null;
+
+        // Tant qu'on a de la place, on consomme d’abord la priorité, puis la fenêtre.
+        // Note: on évite de considérer le véhicule "entamé" AVANT la 1ère assignation,
+        // pour respecter le tri décroissant (Cas 3 Sprint8.txt).
+        boolean vehiculeEntame = false;
+
+        // Phase 1 : priorité (<= heureDispo)
+        while (etat.capaciteRestante > 0 && !prioriteRestantes.isEmpty()) {
+            Reservation prochaine = choisirProchaineReservationPourSplit(
+                    prioriteRestantes,
+                    vehiculeEntame ? Collections.singletonList(etat) : Collections.emptyList()
+            );
+            if (prochaine == null) {
+                break;
+            }
+
+            prioriteRestantes.removeIf(r -> r.getIdReservation() == prochaine.getIdReservation());
+
+            int restantsAvant = assignationRepository.getPassagersRestantsByReservationId(prochaine.getIdReservation());
+            if (restantsAvant <= 0) {
+                mettreAJourReservationNonAssignee(result, prochaine, 0);
+                continue;
+            }
+
+            int nbAssignes = Math.min(restantsAvant, etat.capaciteRestante);
+            if (nbAssignes <= 0) {
+                break;
+            }
+
+            etat.ajouterReservation(prochaine, nbAssignes);
+            enregistrerAssignation(prochaine, vehicule, date, nbAssignes);
+            vehiculeEntame = true;
+
+            int restantsApres = assignationRepository.getPassagersRestantsByReservationId(prochaine.getIdReservation());
+            mettreAJourReservationNonAssignee(result, prochaine, restantsApres);
+
+            LocalDateTime arrivee = prochaine.getDateHeureArrivee();
+            if (arrivee != null) {
+                if (maxArriveeChargee == null || arrivee.isAfter(maxArriveeChargee)) {
+                    maxArriveeChargee = arrivee;
+                }
+                if (arrivee.isAfter(heureDispo)) {
+                    hasFutureLoaded = true;
+                }
+            }
+        }
+
+        // Phase 2 : fenêtre [heureDispo ; heureDispo+tempsAttente] (si reste de la place)
+        while (etat.capaciteRestante > 0 && !fenetreRestantes.isEmpty()) {
+            Reservation prochaine = choisirProchaineReservationPourSplit(
+                    fenetreRestantes,
+                    vehiculeEntame ? Collections.singletonList(etat) : Collections.emptyList()
+            );
+            if (prochaine == null) {
+                break;
+            }
+
+            fenetreRestantes.removeIf(r -> r.getIdReservation() == prochaine.getIdReservation());
+
+            int restantsAvant = assignationRepository.getPassagersRestantsByReservationId(prochaine.getIdReservation());
+            if (restantsAvant <= 0) {
+                mettreAJourReservationNonAssignee(result, prochaine, 0);
+                continue;
+            }
+
+            int nbAssignes = Math.min(restantsAvant, etat.capaciteRestante);
+            if (nbAssignes <= 0) {
+                break;
+            }
+
+            etat.ajouterReservation(prochaine, nbAssignes);
+            enregistrerAssignation(prochaine, vehicule, date, nbAssignes);
+            vehiculeEntame = true;
+
+            int restantsApres = assignationRepository.getPassagersRestantsByReservationId(prochaine.getIdReservation());
+            mettreAJourReservationNonAssignee(result, prochaine, restantsApres);
+
+            LocalDateTime arrivee = prochaine.getDateHeureArrivee();
+            if (arrivee != null) {
+                if (maxArriveeChargee == null || arrivee.isAfter(maxArriveeChargee)) {
+                    maxArriveeChargee = arrivee;
+                }
+                if (arrivee.isAfter(heureDispo)) {
+                    hasFutureLoaded = true;
+                }
+            }
+        }
+
+        int totalCharges = vehicule.getNbrPlaces() - etat.capaciteRestante;
+        if (totalCharges <= 0 || etat.reservationsVoyage.isEmpty()) {
+            return false;
+        }
+
+        // RG-S8-4 : heure de départ
+        LocalDateTime heureDepartVehicule;
+        if (hasFutureLoaded && maxArriveeChargee != null && maxArriveeChargee.isAfter(heureDispo)) {
+            heureDepartVehicule = maxArriveeChargee;
+            if (heureDepartVehicule.isAfter(finFenetre)) {
+                heureDepartVehicule = finFenetre; // garde-fou (normalement inutile)
+            }
+        } else {
+            heureDepartVehicule = heureDispo;
+        }
+
+        // Trajet + MAJ heure retour (Sprint 3 réutilisation)
+        List<Reservation> reservationsVoyage = new ArrayList<>(etat.reservationsVoyage);
+        TrajetComplet trajetComplet = trajetCalculator.calculerTrajetComplet(heureDepartVehicule, reservationsVoyage);
+        if (trajetComplet != null) {
+            vehiculesHeureRetour.put(vehicule.getIdVehicule(), trajetComplet.getHeureRetour());
+        } else {
+            vehiculesHeureRetour.put(vehicule.getIdVehicule(), heureDepartVehicule);
+        }
+
+        // Alimenter le résultat (VehiculePlanDTO + VoyageDTO) comme dans assignerAvecRemplissageProgressif()
+        VehiculePlanDTO vehiculePlan;
+        if (!vehiculePlans.containsKey(vehicule.getIdVehicule())) {
+            vehiculePlan = new VehiculePlanDTO(vehicule, new ArrayList<>());
+            vehiculePlans.put(vehicule.getIdVehicule(), vehiculePlan);
+        } else {
+            vehiculePlan = vehiculePlans.get(vehicule.getIdVehicule());
+        }
+
+        int numeroVoyage = vehiculePlan.getNombreVoyages() + 1;
+        VoyageDTO voyage = new VoyageDTO(
+                numeroVoyage,
+                heureDepartVehicule,
+                trajetComplet != null ? trajetComplet.getHeureRetour() : heureDepartVehicule,
+                trajetComplet != null ? trajetComplet.getDistanceTotale() : 0,
+                reservationsVoyage,
+                trajetComplet != null ? trajetComplet.getDetailsTrajet() : new ArrayList<>()
+        );
+
+        voyage.setPassagersAssignesParReservation(new LinkedHashMap<>(etat.passagersAssignesParReservation));
+        vehiculePlan.addVoyage(voyage);
+        vehiculePlan.getReservations().addAll(reservationsVoyage);
+
+        logger.info("Sprint 8 - Véhicule " + vehicule.getIdVehicule()
+                + " redispo à " + heureDispo
+                + " -> départ " + heureDepartVehicule
+                + " (" + totalCharges + " passagers chargés)");
+
+        return true;
     }
 
     /**

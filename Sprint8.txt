@@ -94,3 +94,27 @@ gestion_ticket=# select * from assignation;
             16 |             11 |           3 | 2026-03-28 00:00:00      |              12
 (16 lignes)
 
+Cas 5 :
+temps d'attente = 30 min
+
+R1 - 7 (non assigne)
+
+R2 - 10  (10h)
+R3 - 7  (10h10)    
+R4 - 3   (10h15)
+
+v1 - 12 places , dispo a partir de 9h50 -> plage [9h50 a 10h20]
+
+Addignation :
+Groupe 1 (voyage 1):
+- v1 :
+    - R1 - 7 (non assigne) -> v1 reste 5 places
+    - ensuite R3 - 5 pers  (10h10) 
+    - heure depart 10h10
+
+Non assigne apres voyage 1
+- R2 - 10  (10h)
+- R3 - 2 pers restants  (10h10) 
+- R4 - 3   (10h15)
+
+Prochain regroupement a 10h20
