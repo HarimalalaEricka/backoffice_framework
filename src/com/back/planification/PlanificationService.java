@@ -235,8 +235,11 @@ public class PlanificationService {
             
             List<Reservation> reservationsTriees = reservationsAAssigner.stream()
                     .sorted((r1, r2) -> {
-                        // Tri primaire : nombre de personnes décroissant
-                        int compareNbr = Integer.compare(r2.getNbrPers(), r1.getNbrPers());
+                        // Tri primaire : passagers RESTANTS décroissant (pas nbrPers original)
+                        // Indispensable pour les réservations partiellement assignées (split sprint 7)
+                        int restants1 = assignationRepository.getPassagersRestantsByReservationId(r1.getIdReservation());
+                        int restants2 = assignationRepository.getPassagersRestantsByReservationId(r2.getIdReservation());
+                        int compareNbr = Integer.compare(restants2, restants1);
                         if (compareNbr != 0) {
                             return compareNbr;
                         }
@@ -472,16 +475,22 @@ public class PlanificationService {
             Map<Integer, VehiculePlanDTO> vehiculePlans,
             PlanificationResult result,
             int tempsAttente) {
-        
-        List<Reservation> reservationsTriees = reservations.stream()
-                .sorted((r1, r2) -> Integer.compare(r2.getNbrPers(), r1.getNbrPers()))
-                .collect(Collectors.toList());
+
+        // Tri par passagers RESTANTS décroissant (pas nbrPers original) pour gérer les splits
+        List<Reservation> reservationsTriees = new ArrayList<>(reservations);
+        reservationsTriees.sort((r1, r2) -> {
+            int restants1 = assignationRepository.getPassagersRestantsByReservationId(r1.getIdReservation());
+            int restants2 = assignationRepository.getPassagersRestantsByReservationId(r2.getIdReservation());
+            return Integer.compare(restants2, restants1);
+        });
 
         Map<Integer, EtatVehiculeGroupe> etatsGroupe = new LinkedHashMap<>();
 
+        // reservationsRestantes : liste ordonnée des réservations non encore entièrement traitées ce groupe
         List<Reservation> reservationsRestantes = new ArrayList<>(reservationsTriees);
 
         while (!reservationsRestantes.isEmpty()) {
+            // Choisir la prochaine réservation principale (passagers restants DESC)
             Reservation reservation = choisirProchaineReservationPourSplit(reservationsRestantes, etatsGroupe.values());
             if (reservation == null) {
                 break;
@@ -492,53 +501,54 @@ public class PlanificationService {
 
             while (passagersRestants > 0) {
                 final int besoinRestant = passagersRestants;
+
                 // Véhicules "non entamés" disponibles pour ouvrir un nouvel état dans CE groupe
                 List<Vehicule> vehiculesDisponibles = tousVehicules.stream()
                         .filter(v -> !etatsGroupe.containsKey(v.getIdVehicule()))
                         .filter(v -> estVehiculeDisponible(v, vehiculesHeureRetour, heureVol))
                         .collect(Collectors.toList());
 
-                // IMPORTANT Sprint7: split uniquement si aucun véhicule unique ne peut absorber tout le reste
+                // Split autorisé uniquement si AUCUN véhicule unique (entamé ou neuf) ne peut absorber tout le reste
                 boolean existeVehiculeEntameCapable = etatsGroupe.values().stream()
                         .anyMatch(e -> e.capaciteRestante >= besoinRestant);
-
                 boolean existeVehiculeNeufCapable = vehiculesDisponibles.stream()
                         .anyMatch(v -> v.getNbrPlaces() >= besoinRestant);
-
                 boolean splitAutorise = !(existeVehiculeEntameCapable || existeVehiculeNeufCapable);
 
                 if (!splitAutorise) {
-                    // 1) Priorité véhicules entamés, MAIS seulement s'ils peuvent prendre tout le reste
+                    // 1) Priorité : véhicule entamé capable de tout prendre
                     EtatVehiculeGroupe entameCapable = choisirVehiculeEntameCapable(etatsGroupe.values(), passagersRestants, vehiculePlans);
                     if (entameCapable != null) {
-                        int nbAssignes = passagersRestants; // pas de split
-                        entameCapable.ajouterReservation(reservation, nbAssignes);
-                        enregistrerAssignation(reservation, entameCapable.vehicule, date, nbAssignes);
+                        entameCapable.ajouterReservation(reservation, passagersRestants);
+                        enregistrerAssignation(reservation, entameCapable.vehicule, date, passagersRestants);
                         passagersRestants = 0;
                         continue;
                     }
 
-                    // 2) Sinon ouvrir un nouveau véhicule capable (plus proche + tie-breakers existants)
+                    // 2) Ouvrir un nouveau véhicule capable (plus proche du besoin + tie-breakers)
                     List<Vehicule> capables = vehiculesDisponibles.stream()
                             .filter(v -> v.getNbrPlaces() >= besoinRestant)
                             .collect(Collectors.toList());
-
                     Vehicule vehiculeChoisi = choisirAvecTieBreakers(capables, passagersRestants, true, vehiculePlans);
                     if (vehiculeChoisi == null) {
                         break;
                     }
-
                     EtatVehiculeGroupe etat = new EtatVehiculeGroupe(vehiculeChoisi);
                     etatsGroupe.put(vehiculeChoisi.getIdVehicule(), etat);
-
-                    int nbAssignes = passagersRestants; // pas de split
-                    etat.ajouterReservation(reservation, nbAssignes);
-                    enregistrerAssignation(reservation, vehiculeChoisi, date, nbAssignes);
+                    etat.ajouterReservation(reservation, passagersRestants);
+                    enregistrerAssignation(reservation, vehiculeChoisi, date, passagersRestants);
                     passagersRestants = 0;
+
+                    // --- REMPLISSAGE PRIORITAIRE DES ENTAMÉS (Sprint 7) ---
+                    // Après avoir ouvert ce nouveau véhicule avec des places restantes,
+                    // chercher dans les réservations suivantes celles qui peuvent le remplir,
+                    // par ordre de proximité de capacité restante du véhicule.
+                    remplirVehiculesEntamesAvecReservationsRestantes(
+                            etatsGroupe, reservationsRestantes, date, vehiculePlans, result);
                     continue;
                 }
 
-                // splitAutorise == true : on peut répartir (entamés d'abord, sinon nouveau véhicule)
+                // splitAutorise == true : répartir sur entamés d'abord, sinon nouveau véhicule
                 EtatVehiculeGroupe vehiculeEntame = choisirVehiculeEntame(etatsGroupe.values(), passagersRestants, vehiculePlans);
                 if (vehiculeEntame != null) {
                     int nbAssignes = Math.min(passagersRestants, vehiculeEntame.capaciteRestante);
@@ -551,15 +561,12 @@ public class PlanificationService {
                 if (vehiculesDisponibles.isEmpty()) {
                     break;
                 }
-
                 Vehicule vehiculeChoisi = choisirVehiculePourBesoin(passagersRestants, vehiculesDisponibles, vehiculePlans);
                 if (vehiculeChoisi == null) {
                     break;
                 }
-
                 EtatVehiculeGroupe etat = new EtatVehiculeGroupe(vehiculeChoisi);
                 etatsGroupe.put(vehiculeChoisi.getIdVehicule(), etat);
-
                 int nbAssignes = Math.min(passagersRestants, vehiculeChoisi.getNbrPlaces());
                 etat.ajouterReservation(reservation, nbAssignes);
                 enregistrerAssignation(reservation, vehiculeChoisi, date, nbAssignes);
@@ -569,22 +576,38 @@ public class PlanificationService {
             mettreAJourReservationNonAssignee(result, reservation, passagersRestants);
         }
 
-        // Finaliser les voyages du groupe
-        for (EtatVehiculeGroupe etat : etatsGroupe.values()) {
-            List<Reservation> reservationsVoyage = new ArrayList<>(etat.reservationsVoyage);
-            LocalDateTime heureDernierVol = reservationsVoyage.stream()
+        // Calcul de l'heure de départ commune du groupe :
+        // Règle : tous les véhicules du groupe partent à la même heure, qui est :
+        //   max(
+        //     max(dateHeureArrivee de TOUTES les réservations de TOUS les voyages du groupe),
+        //     max(heureRetourPrecedente de TOUS les véhicules utilisés dans ce groupe)
+        //   )
+        // Ainsi, si un véhicule réutilisé revient à 09:24 et que les vols arrivent avant,
+        // tout le groupe attend 09:24 pour partir ensemble.
+        LocalDateTime heureDepartGroupeCommune = LocalDateTime.MIN;
+        for (EtatVehiculeGroupe etatTemp : etatsGroupe.values()) {
+            // Max des heures d'arrivée des vols de ce voyage
+            LocalDateTime dernierVolTemp = etatTemp.reservationsVoyage.stream()
                     .map(Reservation::getDateHeureArrivee)
                     .max(Comparator.naturalOrder())
                     .orElse(heureVol);
-
-            LocalDateTime heureRetourPrecedente = vehiculesHeureRetour.get(etat.vehicule.getIdVehicule());
-            LocalDateTime heureDepartVehicule;
-
-            if (heureRetourPrecedente != null && heureRetourPrecedente.isAfter(heureDernierVol)) {
-                heureDepartVehicule = heureRetourPrecedente;
-            } else {
-                heureDepartVehicule = heureDernierVol;
+            if (dernierVolTemp.isAfter(heureDepartGroupeCommune)) {
+                heureDepartGroupeCommune = dernierVolTemp;
             }
+            // Heure de retour du voyage précédent de ce véhicule (s'il existe)
+            LocalDateTime retourPrecTemp = vehiculesHeureRetour.get(etatTemp.vehicule.getIdVehicule());
+            if (retourPrecTemp != null && retourPrecTemp.isAfter(heureDepartGroupeCommune)) {
+                heureDepartGroupeCommune = retourPrecTemp;
+            }
+        }
+        final LocalDateTime heureDepartCommune = heureDepartGroupeCommune;
+
+        // Finaliser les voyages du groupe
+        for (EtatVehiculeGroupe etat : etatsGroupe.values()) {
+            List<Reservation> reservationsVoyage = new ArrayList<>(etat.reservationsVoyage);
+
+            // Tous les véhicules du groupe partent à la même heure commune
+            LocalDateTime heureDepartVehicule = heureDepartCommune;
 
             TrajetComplet trajetComplet = trajetCalculator.calculerTrajetComplet(heureDepartVehicule, reservationsVoyage);
             vehiculesHeureRetour.put(etat.vehicule.getIdVehicule(), trajetComplet.getHeureRetour());
@@ -610,6 +633,67 @@ public class PlanificationService {
             voyage.setPassagersAssignesParReservation(new LinkedHashMap<>(etat.passagersAssignesParReservation));
             vehiculePlan.addVoyage(voyage);
             vehiculePlan.getReservations().addAll(reservationsVoyage);
+        }
+    }
+
+    /**
+     * Sprint 7 - Remplissage prioritaire des véhicules entamés.
+     * Après ouverture d'un véhicule avec des places restantes, parcourt les réservations
+     * restantes et assigne celles dont le besoin est le plus proche de la capacité disponible.
+     * Une réservation complètement traitée est retirée de reservationsRestantes.
+     */
+    private void remplirVehiculesEntamesAvecReservationsRestantes(
+            Map<Integer, EtatVehiculeGroupe> etatsGroupe,
+            List<Reservation> reservationsRestantes,
+            LocalDate date,
+            Map<Integer, VehiculePlanDTO> vehiculePlans,
+            PlanificationResult result) {
+
+        boolean progression = true;
+        while (progression) {
+            progression = false;
+
+            // Trouver le véhicule entamé avec des places restantes
+            // Priorité : celui dont la capacité restante est la plus petite (à remplir en premier)
+            EtatVehiculeGroupe cible = etatsGroupe.values().stream()
+                    .filter(e -> e.capaciteRestante > 0)
+                    .min(Comparator.comparingInt(e -> e.capaciteRestante))
+                    .orElse(null);
+
+            if (cible == null || reservationsRestantes.isEmpty()) {
+                break;
+            }
+
+            // Parmi les réservations restantes, trouver celle dont le besoin restant
+            // est le plus proche de la capacité disponible du véhicule cible
+            final int placesDispos = cible.capaciteRestante;
+            Reservation meilleure = reservationsRestantes.stream()
+                    .filter(r -> assignationRepository.getPassagersRestantsByReservationId(r.getIdReservation()) > 0)
+                    .min(Comparator.comparingInt(r -> {
+                        int restants = assignationRepository.getPassagersRestantsByReservationId(r.getIdReservation());
+                        return Math.abs(restants - placesDispos);
+                    }))
+                    .orElse(null);
+
+            if (meilleure == null) {
+                break;
+            }
+
+            int passagersRestantsMeilleure = assignationRepository.getPassagersRestantsByReservationId(meilleure.getIdReservation());
+            int nbAssignes = Math.min(passagersRestantsMeilleure, placesDispos);
+
+            cible.ajouterReservation(meilleure, nbAssignes);
+            enregistrerAssignation(meilleure, cible.vehicule, date, nbAssignes);
+            int resteApres = passagersRestantsMeilleure - nbAssignes;
+
+            if (resteApres <= 0) {
+                // Réservation complètement traitée : retirer de la liste principale
+                reservationsRestantes.removeIf(r -> r.getIdReservation() == meilleure.getIdReservation());
+            }
+            // Sinon elle reste dans reservationsRestantes pour traitement ultérieur
+
+            mettreAJourReservationNonAssignee(result, meilleure, resteApres);
+            progression = true;
         }
     }
 
