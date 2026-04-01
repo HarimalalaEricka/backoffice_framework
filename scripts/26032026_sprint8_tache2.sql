@@ -36,7 +36,7 @@ INSERT INTO Distance (from_hotel_id, to_hotel_id, distance_km) VALUES
 (1, 3, 1);
 
 -- =========================================================
--- CAS 1 (2026-03-28)
+-- CAS 1 (2026-04-29)
 -- RN(11) + RN(3) + fenêtre pour compléter 6 places -> véhicule plein
 -- Attendu: véhicule dispo à 11:00, charge d'abord <=11:00 puis complète dans [11:00;11:30]
 -- Exemple extension:
@@ -51,23 +51,23 @@ INSERT INTO Vehicule (idVehicule, reference, nbr_places, type_carburant) VALUES
 -- Départ = max(arrivée SIM) = 10:16
 -- Hotel 2 (22km): aller 22min + retour 22min => retour à 11:00
 INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
-(1001, 'SIM-C1', '2026-03-28 10:16:00', 1, 2);
+(1001, 'SIM-C1', '2026-04-29 10:16:00', 1, 2);
 
 INSERT INTO Assignation (reservation_id, vehicule_id, date_heure_planification, nb_pers_assigne) VALUES
-(1001, 101, '2026-03-28 00:00:00', 1);
+(1001, 101, '2026-04-29 00:00:00', 1);
 
 -- Réservations non assignées (avant dispo)
 INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
-(1002, 'C1-RN-11', '2026-03-28 10:00:00', 11, 2),
-(1003, 'C1-RN-3',  '2026-03-28 10:05:00',  3, 2);
+(1002, 'C1-RN-11', '2026-04-29 10:00:00', 11, 2),
+(1003, 'C1-RN-3',  '2026-04-29 10:05:00',  3, 2);
 
 -- Réservations dans la fenêtre [11:00; 11:30]
 INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
-(1004, 'C1-WIN-4', '2026-03-28 11:10:00', 4, 2),
-(1005, 'C1-WIN-2', '2026-03-28 11:20:00', 2, 2);
+(1004, 'C1-WIN-4', '2026-04-29 11:10:00', 4, 2),
+(1005, 'C1-WIN-2', '2026-04-29 11:20:00', 2, 2);
 
 -- =========================================================
--- CAS 2 (2026-03-29)
+-- CAS 2 (2026-04-29)
 -- Véhicule dispo 09:45, fenêtre [09:45;10:15]
 -- Attendu: ne PAS attendre 10:40, prendre les vols 10:00/10:10 si capacité
 -- Extension: on met une RN avant 09:45 pour tester la priorité
@@ -81,26 +81,26 @@ INSERT INTO Vehicule (idVehicule, reference, nbr_places, type_carburant) VALUES
 -- SIM pour fixer l'heureRetour du véhicule à 09:45
 -- Départ = 09:01, A/R = 44 min => 09:45
 INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
-(2001, 'SIM-C2', '2026-03-29 09:01:00', 1, 2);
+(2001, 'SIM-C2', '2026-04-29 09:01:00', 1, 2);
 
 INSERT INTO Assignation (reservation_id, vehicule_id, date_heure_planification, nb_pers_assigne) VALUES
-(2001, 102, '2026-03-29 00:00:00', 1);
+(2001, 102, '2026-04-29 00:00:00', 1);
 
 -- RN avant dispo (doit être prise en priorité à 09:45)
 INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
-(2002, 'C2-RN-2', '2026-03-29 08:30:00', 2, 2);
+(2002, 'C2-RN-2', '2026-04-29 08:30:00', 2, 2);
 
 -- Fenêtre [09:45;10:15]
 INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
-(2003, 'C2-10H00-4', '2026-03-29 10:00:00', 4, 2),
-(2004, 'C2-10H10-4', '2026-03-29 10:10:00', 4, 2);
+(2003, 'C2-10H00-4', '2026-04-29 10:00:00', 4, 2),
+(2004, 'C2-10H10-4', '2026-04-29 10:10:00', 4, 2);
 
 -- Après fenêtre
 INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
-(2005, 'C2-10H40-5', '2026-03-29 10:40:00', 5, 2);
+(2005, 'C2-10H40-5', '2026-04-29 10:40:00', 5, 2);
 
 -- =========================================================
--- CAS 3 (2026-03-30)
+-- CAS 3 (2026-04-30)
 -- Après split, la prochaine assignation doit traiter d'abord le plus gros restant
 -- Attendu:
 --   - À 12:00: prendre R2(12) d'abord -> split 11 + reste 1
@@ -113,22 +113,22 @@ INSERT INTO Vehicule (idVehicule, reference, nbr_places, type_carburant) VALUES
 -- SIM pour fixer l'heureRetour à 12:00
 -- Départ = 11:58, Hotel 3 (A/R 2 min) => retour 12:00
 INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
-(3001, 'SIM-C3', '2026-03-30 11:58:00', 1, 3);
+(3001, 'SIM-C3', '2026-04-30 11:58:00', 1, 3);
 
 INSERT INTO Assignation (reservation_id, vehicule_id, date_heure_planification, nb_pers_assigne) VALUES
-(3001, 103, '2026-03-30 00:00:00', 1);
+(3001, 103, '2026-04-30 00:00:00', 1);
 
 -- Deux grosses réservations avant 12:00 (doivent rester non assignées tant que véhicule occupé)
 INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
-(3002, 'C3-R1-11', '2026-03-30 11:30:00', 11, 3),
-(3003, 'C3-R2-12', '2026-03-30 11:30:00', 12, 3);
+(3002, 'C3-R1-11', '2026-04-30 11:30:00', 11, 3),
+(3003, 'C3-R2-12', '2026-04-30 11:30:00', 12, 3);
 
 -- Réservation tardive pour garantir un "prochain groupe" après 12:00
 INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
-(3004, 'C3-LATE-1', '2026-03-30 13:00:00', 1, 3);
+(3004, 'C3-LATE-1', '2026-04-30 13:00:00', 1, 3);
 
 -- =========================================================
--- CAS 4 (2026-03-31)
+-- CAS 4 (2026-04-30)
 -- Véhicule entamé: reste 2 places => choisir la réservation la plus proche (2) pas (3)
 -- Attendu:
 --   - À 15:00: charger R1(11) puis choisir R3(2) (delta 0) plutôt que R2(3)
@@ -140,20 +140,20 @@ INSERT INTO Vehicule (idVehicule, reference, nbr_places, type_carburant) VALUES
 -- SIM pour fixer l'heureRetour à 15:00
 -- Départ = 14:58, A/R 2 min => retour 15:00
 INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
-(4001, 'SIM-C4', '2026-03-31 14:58:00', 1, 3);
+(4001, 'SIM-C4', '2026-04-30 14:58:00', 1, 3);
 
 INSERT INTO Assignation (reservation_id, vehicule_id, date_heure_planification, nb_pers_assigne) VALUES
-(4001, 104, '2026-03-31 00:00:00', 1);
+(4001, 104, '2026-04-30 00:00:00', 1);
 
 -- Non assignées avant 15:00
 INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
-(4002, 'C4-R1-11', '2026-03-31 14:00:00', 11, 3),
-(4003, 'C4-R2-3',  '2026-03-31 14:05:00',  3, 3),
-(4004, 'C4-R3-2',  '2026-03-31 14:10:00',  2, 3);
+(4002, 'C4-R1-11', '2026-04-30 14:00:00', 11, 3),
+(4003, 'C4-R2-3',  '2026-04-30 14:05:00',  3, 3),
+(4004, 'C4-R3-2',  '2026-04-30 14:10:00',  2, 3);
 
 -- Réservation tardive pour garantir un prochain groupe
 INSERT INTO Reservation (idReservation, client_id, date_heure_arrivee, nbr_pers, hotel_id) VALUES
-(4005, 'C4-LATE-1', '2026-03-31 16:00:00', 1, 3);
+(4005, 'C4-LATE-1', '2026-04-30 16:00:00', 1, 3);
 
 -- =========================================================
 -- REQUÊTES DE CONTRÔLE (avant exécution de la planification)
@@ -186,7 +186,7 @@ ORDER BY r.idReservation;
 -- (Note: date_heure_planification est toujours à 00:00 dans votre code)
 -- =========================================================
 -- Exemple: remplacer la date selon le cas
--- 2026-03-28 (cas 1), 2026-03-29 (cas 2), 2026-03-30 (cas 3), 2026-03-31 (cas 4)
+-- 2026-04-29 (cas 1), 2026-04-29 (cas 2), 2026-04-30 (cas 3), 2026-04-30 (cas 4)
 
 -- Vérif restants par réservation (pour une date donnée)
 -- SELECT r.idReservation, r.client_id, r.date_heure_arrivee, r.nbr_pers,
@@ -194,7 +194,7 @@ ORDER BY r.idReservation;
 --        (r.nbr_pers - COALESCE(SUM(a.nb_pers_assigne),0)) AS restants
 -- FROM Reservation r
 -- LEFT JOIN Assignation a ON a.reservation_id = r.idReservation
--- WHERE DATE(r.date_heure_arrivee) = DATE '2026-03-29'
+-- WHERE DATE(r.date_heure_arrivee) = DATE '2026-04-29'
 -- GROUP BY r.idReservation, r.client_id, r.date_heure_arrivee, r.nbr_pers
 -- ORDER BY r.date_heure_arrivee, r.idReservation;
 
@@ -203,6 +203,6 @@ ORDER BY r.idReservation;
 -- FROM Assignation a
 -- JOIN Vehicule v ON v.idVehicule = a.vehicule_id
 -- JOIN Reservation r ON r.idReservation = a.reservation_id
--- WHERE DATE(r.date_heure_arrivee) = DATE '2026-03-29'
+-- WHERE DATE(r.date_heure_arrivee) = DATE '2026-04-29'
 -- GROUP BY a.vehicule_id, v.reference
 -- ORDER BY a.vehicule_id;
