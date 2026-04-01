@@ -116,6 +116,11 @@ public class VehiculePlanDTO {
 
     // Calcul du nombre total de personnes assignées à ce véhicule
     public int getTotalPersonnes() {
+        if (voyages != null && !voyages.isEmpty()) {
+            return voyages.stream()
+                    .mapToInt(VoyageDTO::getTotalPersonnes)
+                    .sum();
+        }
         if (reservations == null) return 0;
         return reservations.stream()
                 .mapToInt(Reservation::getNbrPers)
