@@ -178,27 +178,69 @@ public class PlanificationService {
                     .min(Comparator.naturalOrder())
                     .orElse(heureVol); // fallback
             
-            logger.info("Sprint 5 - Tâche 1 : Recherche de réservations non assignées avant " + debutIntervalle);
-            
+            // SPRINT 8 - TÂCHE 1 : Priorisation des réservations non assignées
+            logger.info("Sprint 8 - Tâche 1 : Recherche de réservations non assignées avant " + debutIntervalle);
+
             // Récupérer toutes les réservations non assignées de la journée qui arrivent avant debutIntervalle
             List<Reservation> reservationsNonAssigneesAvant = reservationRepository
                     .findUnassignedByDateAndArrivalBefore(date, debutIntervalle);
-            
+
             // Filtrer celles qui ne sont pas déjà dans le groupe actuel
+            Set<Integer> idsGroupe = groupe.stream()
+                    .map(Reservation::getIdReservation)
+                    .collect(Collectors.toSet());
+
             reservationsNonAssigneesAvant = reservationsNonAssigneesAvant.stream()
-                    .filter(r -> groupe.stream().noneMatch(gr -> gr.getIdReservation() == r.getIdReservation()))
+                    .filter(r -> !idsGroupe.contains(r.getIdReservation()))
                     .collect(Collectors.toList());
-            
+
+            // SPRINT 8 - TÂCHE 1 : Traitement PRIORITAIRE des non assignées
             if (!reservationsNonAssigneesAvant.isEmpty()) {
-                logger.info("Sprint 5 - Tâche 1 : " + reservationsNonAssigneesAvant.size() + 
-                           " réservations non assignées trouvées avant " + debutIntervalle + 
-                           ", ajoutées au groupe actuel");
-                
-                // Ajouter ces réservations au groupe actuel
-                groupe.addAll(reservationsNonAssigneesAvant);
-                
-                // Retrier le groupe par heure d'arrivée pour maintenir l'ordre
-                groupe.sort(Comparator.comparing(Reservation::getDateHeureArrivee));
+                logger.info("Sprint 8 - Tâche 1 : " + reservationsNonAssigneesAvant.size() + 
+                           " réservations non assignées seront traitées en PRIORITÉ avant le groupe principal");
+
+                // Appliquer RG7 + RG11 pour trier les non assignées
+                Map<Integer, String> hotelNoms = hotelRepository.findAllHotels().stream()
+                        .collect(Collectors.toMap(Hotel::getIdHotel, Hotel::getNom));
+
+                List<Reservation> nonAssigneesTriees = reservationsNonAssigneesAvant.stream()
+                    .sorted((r1, r2) -> {
+                        // RG7: Tri par passagers RESTANTS décroissant
+                        int restants1 = assignationRepository.getPassagersRestantsByReservationId(r1.getIdReservation());
+                        int restants2 = assignationRepository.getPassagersRestantsByReservationId(r2.getIdReservation());
+                        int compareNbr = Integer.compare(restants2, restants1);
+                        if (compareNbr != 0) {
+                            return compareNbr;
+                        }
+                        // RG11: Tri alphabétique par nom d'hôtel
+                        String nom1 = hotelNoms.getOrDefault(r1.getHotelId(), "Hotel#" + r1.getHotelId());
+                        String nom2 = hotelNoms.getOrDefault(r2.getHotelId(), "Hotel#" + r2.getHotelId());
+                        return nom1.compareTo(nom2);
+                    })
+                    .collect(Collectors.toList());
+                logger.info("Sprint 8 - Tâche 1 : Traitement PRIORITAIRE des non assignées - Ordre : " + 
+                    nonAssigneesTriees.stream()
+                        .map(r -> r.getDateHeureArrivee() + " (" + 
+                            assignationRepository.getPassagersRestantsByReservationId(r.getIdReservation()) + "p)")
+                        .collect(Collectors.joining(", ")));
+                // Traiter les réservations non assignées en PRIORITÉ
+                // Elles sont assignées AVANT le groupe principal
+                assignerAvecRemplissageProgressif(
+                    nonAssigneesTriees,
+                    debutIntervalle,  // Utiliser l'heure de début du groupe comme référence
+                    date,
+                    tousVehicules,
+                    vehiculesHeureRetour,
+                    vehiculePlans,
+                    result,
+                    tempsAttente
+                );
+
+                logger.info("Sprint 8 - Tâche 1 : Fin du traitement PRIORITAIRE des non assignées");
+            }
+            // Puis traiter le groupe principal (les réservations de la tranche actuelle)
+            if (!groupe.isEmpty()) {
+                logger.info("Sprint 8 - Tâche 1 : Traitement du groupe principal avec " + groupe.size() + " réservations");
             }
             
             // Filtrer les réservations déjà assignées
