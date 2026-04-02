@@ -115,7 +115,7 @@ public class PlanificationService {
         logger.info("Début de la planification pour la date : " + date);
         
         // Sprint 4 - Réinitialisation automatique avant recalcul
-        // reinitialiserAssignations(date);
+        reinitialiserAssignations(date);
         
         PlanificationResult result = new PlanificationResult();
         
