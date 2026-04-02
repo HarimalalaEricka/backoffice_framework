@@ -171,6 +171,8 @@ public class PlanificationService {
         for (Map.Entry<LocalDateTime, List<Reservation>> entry : groupesTries) {
             LocalDateTime heureVol = entry.getKey();          // = fin de tranche (Sprint 5)
             List<Reservation> groupe = entry.getValue();
+            List<Reservation> nonAssigneesTriees = new ArrayList<>();
+            List<Reservation> nouvellesResaGroupe = new ArrayList<>();
             
             // SPRINT 8 - TACHE 1 : Priorisation des réservations non assignées dans le prochain groupe
             // Règle métier : Les réservations complètement non assignées (0 passagers assignés)
@@ -209,7 +211,7 @@ public class PlanificationService {
                 Map<Integer, String> hotelNoms = hotelRepository.findAllHotels().stream()
                         .collect(Collectors.toMap(Hotel::getIdHotel, Hotel::getNom));
 
-                List<Reservation> nonAssigneesTriees = reservationsNonAssigneesAvant.stream()
+                nonAssigneesTriees = reservationsNonAssigneesAvant.stream()
                     .sorted((r1, r2) -> {
                         // RG7: Tri par passagers RESTANTS décroissant
                         int restants1 = assignationRepository.getPassagersRestantsByReservationId(r1.getIdReservation());
@@ -249,7 +251,10 @@ public class PlanificationService {
                 logger.info("Sprint 8 - Tâche 1 : Traitement du groupe principal avec " + groupe.size() + " réservations");
             }
             
-            // Garder uniquement les nouvelles réservations du groupe
+            // Garder uniquement les nouvelles réservations du groupe (passagers restants >0)
+            nouvellesResaGroupe = groupe.stream()
+                    .filter(r -> assignationRepository.hasPassagersRestants(r.getIdReservation()))
+                    .collect(Collectors.toList());
             groupe = nouvellesResaGroupe;
             
             // Filtrer les réservations déjà assignées
