@@ -27,7 +27,7 @@ INSERT INTO Vehicule (reference, nbr_places, type_carburant) VALUES
 -- 3. INSERTION DES PARAMETRES
 -- =========================
 INSERT INTO Parametre (vitesse_moyenne, temps_attente) VALUES
-(50, 30);  -- 50 km/h, 30 minutes d'attente
+(40, 30);  -- 50 km/h, 30 minutes d'attente
 
 -- =========================
 -- 4. INSERTION DES DISTANCES
