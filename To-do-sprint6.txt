@@ -2,7 +2,7 @@ Team Lead :
     ETU003366 / Vatosoa Wanda
 
 Developpeurs :
-    ETU003324 / Harenkantou
+    ETU003324 / Harenpostgresu
     ETU003350 / Harimalala Ericka
 
 

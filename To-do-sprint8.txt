@@ -2,7 +2,7 @@ Team Lead :
     ETU003350 / Harimalala Ericka
 
 Developpeurs :
-    ETU003324 / Harenkantou
+    ETU003324 / Harenpostgresu
     ETU003366 / Vatosoa Wanda
 
 Apres Integration, Tache 2 est prise en compte en premiere

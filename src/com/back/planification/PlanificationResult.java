@@ -72,9 +72,10 @@ public class PlanificationResult {
 
     public int getNombreReservationsAssignees() {
         if (vehiculesAssignes == null) return 0;
-        return vehiculesAssignes.stream()
-                .mapToInt(v -> v.getReservations().size())
-                .sum();
+        return (int) vehiculesAssignes.stream()
+                .flatMap(v -> v.getReservations().stream().map(r -> r.getIdReservation()))
+                .distinct()
+                .count();
     }
 
     public int getNombreReservationsNonAssignees() {
